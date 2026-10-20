@@ -13,9 +13,16 @@ const ANYWHERE =
 const PROBLEM_STATEMENT =
   /\b(the (question|problem) is|given (an?|the|two|some) (\w+ ){0,3}(array|string|list|tree|graph|integer|number|matrix|grid|linked list|binary)|return (the|all|an?|true|whether)\b|find (the|all)\b|power ?set)\b/i
 
-/** Acknowledgements and filler that never need an answer. */
+/** Hindi question/request words written in English letters (Hinglish). */
+const HINGLISH =
+  /\b(kya|kyu|kyun|kyon|kaise|kaisa|kab|kahan|kaun|kitna|kitne|batao|bataiye|batayiye|bataye|samjhao|samjhaiye|likho|likhiye|explain karo|kar ke dikhao)\b/i
+
+/** The same in Devanagari. (\b doesn't work outside ASCII, so no word boundaries here.) */
+const HINDI = /(क्या|क्यों|क्यूँ|कैसे|कब|कहाँ|कहां|कौन|कितन|बताओ|बताइए|बताइये|बताएं|समझाओ|समझाइए|लिखो|लिखिए)/
+
+/** Acknowledgements and filler that never need an answer (English and Hindi). */
 const FILLER =
-  /^(ok|okay|right|great|cool|sure|yes|yeah|yep|no|nope|alright|mm+|hmm+|uh+|um+|thanks|thank you|got it|makes sense|sounds good|perfect|nice|good)[\s.!,]*$/i
+  /^(ok|okay|right|great|cool|sure|yes|yeah|yep|no|nope|alright|mm+|hmm+|uh+|um+|thanks|thank you|got it|makes sense|sounds good|perfect|nice|good|haan|han|achha|accha|acha|theek hai|thik hai|ji|haan ji|हाँ|हां|अच्छा|ठीक है|जी)[\s.!,।]*$/i
 
 /** Call logistics, not content questions. */
 const LOGISTICS = /\b(can you hear me|hear me okay|share (your|the) screen|am i audible|are you there|is my (audio|voice|mic)|you('re| are) on mute|unmute)\b/i
@@ -29,6 +36,7 @@ export function questionScore(text: string): number {
   if (OPENER.test(trimmed)) score += 1
   if (ANYWHERE.test(trimmed)) score += 1
   if (PROBLEM_STATEMENT.test(trimmed)) score += 1
+  if (HINGLISH.test(trimmed) || HINDI.test(trimmed)) score += 1
   return score
 }
 

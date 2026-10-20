@@ -50,6 +50,15 @@ describe('prompts', () => {
     }
   })
 
+  it('keeps live answers short, spoken and in the language of the question', () => {
+    const p = livePrompt({ language: 'java', verbosity: 'concise' })
+    expect(p).toContain('**In short:**')
+    expect(p).toContain('At most 120 words')
+    expect(p).toContain('Hinglish')
+    expect(p).toContain('Keep code, identifiers and technical terms')
+    expect(p).not.toContain('## Explanation')
+  })
+
   it('asks the classifier to correct misheard terms', () => {
     expect(TRIAGE_PROMPT).toContain('correct misheard technical terms')
   })

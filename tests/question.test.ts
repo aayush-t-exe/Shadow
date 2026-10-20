@@ -13,12 +13,17 @@ describe('looksLikeQuestion', () => {
     // Problem statements read aloud (real Deepgram output, mishearings included)
     'Okay. So the question is, given an indigent array, numbs of unique elements, return all possible subsets to the powerset.',
     "I'm given a binary error now, and the teacher gave and returned the maximum number of consecutive ones in the array.",
-    'given a string s find the length of the longest substring without repeating characters'
+    'given a string s find the length of the longest substring without repeating characters',
+    // Hindi and Hinglish
+    'React Native kya hota hai aur ye kaise kaam karta hai',
+    'linked list ko reverse kaise karte hain batao',
+    'रिएक्ट नेटिव क्या है और इसका उपयोग कैसे होता है',
+    'TypeScript aur JavaScript me difference samjhao'
   ])('flags "%s"', (text) => {
     expect(looksLikeQuestion(text)).toBe(true)
   })
 
-  it.each(['okay', 'Great, makes sense.', 'mm-hmm', 'Can you hear me?', 'Could you share your screen?', 'thanks', 'I see.'])(
+  it.each(['okay', 'Great, makes sense.', 'mm-hmm', 'Can you hear me?', 'Could you share your screen?', 'thanks', 'I see.', 'haan theek hai', 'अच्छा', 'achha'])(
     'ignores "%s"',
     (text) => {
       expect(looksLikeQuestion(text)).toBe(false)

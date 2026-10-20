@@ -114,6 +114,13 @@ export function smartAnswer(): Promise<void> {
 
 export const isAnswering = () => inflight !== null
 
+const idleWaiters: Array<() => void> = []
+/** Resolves once no answer is streaming. Auto-answers queue behind the current answer instead of cutting it off. */
+export function whenIdle(): Promise<void> {
+  if (!inflight) return Promise.resolve()
+  return new Promise((resolve) => idleWaiters.push(resolve))
+}
+
 const imageParts = (shots: Screenshot[]) =>
   shots.map((s) => ({ type: 'file' as const, mediaType: 'image/png', data: s.png }))
 
@@ -255,7 +262,10 @@ export async function ask(req: AskRequest): Promise<void> {
     }
   } finally {
     clearInterval(timer)
-    if (inflight?.id === id) inflight = null
+    if (inflight?.id === id) {
+      inflight = null
+      idleWaiters.splice(0).forEach((resolve) => resolve())
+    }
     // The answer ended before the block closed (stopped, error, or truncated): copy what exists.
     if (copyWhenCodeCompletes) copyNow()
   }

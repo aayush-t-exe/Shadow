@@ -6,7 +6,7 @@ import { similarity } from '@shared/text'
 import { getSettings } from '../settings'
 import { getModel } from '../ai/providers'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
-import { ask, onSessionReset } from '../session'
+import { ask, onSessionReset, whenIdle } from '../session'
 import { SPEAKER } from '@shared/live'
 import { IPC } from '@shared/api'
 import { hotkeyFor, keycaps } from '@shared/hotkeys'
@@ -48,6 +48,8 @@ function toastRepeat() {
 
 let lastMicStart = 0
 let lastAutoAnswerAt = 0
+let resetEpoch = 0
+let queue: Promise<void> = Promise.resolve()
 let answered: string[] = []
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -114,7 +116,15 @@ async function consider(turn: FinalTurn) {
 
   answered = [...answered, question].slice(-REMEMBERED_QUESTIONS)
   lastAutoAnswerAt = Date.now()
-  await ask({ mode: 'live', text: question })
+  // Queue behind any answer that's still streaming (ask() resolves only when its answer is
+  // complete, so chaining serialises them). A reset in the meantime drops queued questions.
+  const epoch = resetEpoch
+  const job = queue.then(async () => {
+    await whenIdle()
+    if (epoch === resetEpoch) await ask({ mode: 'live', text: question })
+  })
+  queue = job.catch(() => {}) // one failed answer must not block the ones queued after it
+  await job
 }
 
 export function startAutoAnswer() {
@@ -124,5 +134,6 @@ export function startAutoAnswer() {
   })
   onSessionReset(() => {
     answered = []
+    resetEpoch++
   })
 }
