@@ -1,6 +1,7 @@
 import { IPC } from '@shared/api'
 import { SPEAKER, type AudioSourceId, type ListenStatus, type TranscriptLine } from '@shared/live'
 import { similarity } from '@shared/text'
+import { looksLikeQuestion } from '@shared/question'
 import { getApiKey } from '../secrets'
 import { getSettings } from '../settings'
 import { broadcast } from '../windows'
@@ -37,6 +38,7 @@ let sockets: Partial<Record<AudioSourceId, DeepgramFlux>> = {}
 // Bumped on every (re)connect: Deepgram restarts turn numbering per socket, and ids must stay unique.
 let generation = 0
 let history: FinalTurn[] = []
+let listenStartedAt = Date.now()
 const signalListeners = new Set<(signal: TurnSignal) => void>()
 
 export const getListenStatus = () => status
@@ -65,7 +67,8 @@ function handleTurn(source: AudioSourceId, gen: number, turn: FluxTurn) {
   if (!turn.transcript) return
   const id = `${source}-${gen}-${turn.turnIndex}`
   const now = Date.now()
-  const at = now - (status.startedAt ?? now)
+  // The final turn can arrive just after listening stopped, so don't rely on status.startedAt.
+  const at = now - listenStartedAt
 
   if (turn.event === 'StartOfTurn' && source === 'mic') emitSignal({ kind: 'mic-start' })
   if (source === 'system' && turn.event === 'EagerEndOfTurn') emitSignal({ kind: 'eager', text: turn.transcript })
@@ -125,11 +128,13 @@ export async function startListening(): Promise<void> {
     setStatus({ state: 'off' })
     throw err
   }
-  setStatus({ state: 'on', startedAt: Date.now() })
+  listenStartedAt = Date.now()
+  setStatus({ state: 'on', startedAt: listenStartedAt })
 }
 
+/** Closes both sockets; each first finalizes any sentence still in progress. */
 function closeSockets() {
-  for (const socket of Object.values(sockets)) socket?.close()
+  for (const socket of Object.values(sockets)) void socket?.close()
   sockets = {}
 }
 
@@ -164,6 +169,11 @@ export function recentTranscript(maxTurns = 25, maxChars = 10_000): { speaker: s
   return picked.map((t) => ({ speaker: SPEAKER[t.source], text: t.text, at: t.endedAt - base }))
 }
 
-export function lastTheirTurn(): FinalTurn | undefined {
-  return [...history].reverse().find((t) => t.source === 'system')
+/** The newest turn that sounds like a question (either speaker), else the newest "Them" turn. */
+export function lastQuestionTurn(): FinalTurn | undefined {
+  const newestFirst = [...history].reverse()
+  return newestFirst.find((t) => looksLikeQuestion(t.text)) ?? newestFirst.find((t) => t.source === 'system')
 }
+
+/** Epoch ms when the newest turn ended, or 0. */
+export const lastTurnEndedAt = () => history.at(-1)?.endedAt ?? 0

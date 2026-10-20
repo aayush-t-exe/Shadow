@@ -16,7 +16,8 @@ const settingsPatch = z
     ollamaBaseURL: z.url(),
     customBaseURL: z.union([z.url(), z.literal('')]),
     sttLanguage: z.enum(['en', 'multi']),
-    autoAnswer: z.boolean()
+    autoAnswer: z.boolean(),
+    answerFrom: z.enum(['anyone', 'them'])
   })
   .partial()
   .strict()
@@ -30,7 +31,8 @@ const DEFAULTS: Settings = {
   ollamaBaseURL: 'http://127.0.0.1:11434',
   customBaseURL: '',
   sttLanguage: 'en',
-  autoAnswer: true
+  autoAnswer: true,
+  answerFrom: 'anyone'
 }
 
 let store: Store<Settings> | undefined

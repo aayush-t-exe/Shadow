@@ -18,12 +18,14 @@ import {
   solveUserText
 } from './ai/prompts'
 import { broadcast } from './windows'
-import { clearTranscript, getListenStatus, lastTheirTurn, recentTranscript } from './live/listen'
+import { clearTranscript, getListenStatus, lastQuestionTurn, lastTurnEndedAt, recentTranscript } from './live/listen'
 
 // The session holds everything about the current problem: queued screenshots,
 // the conversation so far, and the answer that is streaming right now.
 
 const MAX_SCREENSHOTS = 4
+// Ctrl+Shift+Enter answers the conversation (not just the screen) if someone spoke this recently.
+const RECENT_SPEECH_MS = 2 * 60_000
 // Main batches tokens for this long before sending them to the UI (fewer IPC messages, smoother rendering).
 const FLUSH_MS = 30
 
@@ -97,12 +99,13 @@ function lastCodeBlockIsClosed(markdown: string): boolean {
 }
 
 /**
- * Ctrl+Shift+Enter. While listening with nothing queued: answer the last question heard,
- * looking at the screen too. Otherwise: solve the queue, or debug if a solution already
- * exists and new shots are queued.
+ * Ctrl+Shift+Enter. While listening (or just after) with nothing queued: answer the last
+ * question heard from either speaker, looking at the screen too. Otherwise: solve the queue,
+ * or debug if a solution already exists and new shots are queued.
  */
 export function smartAnswer(): Promise<void> {
-  if (getListenStatus().state === 'on' && screenshots.length === 0 && lastTheirTurn()) {
+  const heardRecently = getListenStatus().state === 'on' || Date.now() - lastTurnEndedAt() < RECENT_SPEECH_MS
+  if (heardRecently && screenshots.length === 0 && lastQuestionTurn()) {
     return ask({ mode: 'live', withScreen: true })
   }
   const mode: AskMode = history.length > 0 && screenshots.length > 0 ? 'debug' : 'solve'
@@ -138,7 +141,7 @@ export async function ask(req: AskRequest): Promise<void> {
   let mode = req.mode
   if (mode === 'debug' && history.length === 0) mode = 'solve'
   if (mode === 'followup' && !req.text?.trim()) return
-  const liveQuestion = mode === 'live' ? (req.text?.trim() || lastTheirTurn()?.text) : undefined
+  const liveQuestion = mode === 'live' ? (req.text?.trim() || lastQuestionTurn()?.text) : undefined
   if (mode === 'live' && !liveQuestion) {
     broadcast(IPC.toast, 'No question heard yet')
     return

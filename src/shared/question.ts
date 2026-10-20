@@ -9,6 +9,10 @@ const OPENER =
 const ANYWHERE =
   /\b(tell me about|walk me through|explain|how would you|how do you|how can you|what is|what's|what are|difference between|time complexity|space complexity|big o|can you (write|implement|code|explain|tell|solve|optimi[sz]e)|write (a|an|the) (function|program|code|query|class|method)|implement (a|an|the))\b/i
 
+/** A coding problem being read out: "the question is…", "given an array…", "return all…". */
+const PROBLEM_STATEMENT =
+  /\b(the (question|problem) is|given (an?|the|two|some) (\w+ ){0,3}(array|string|list|tree|graph|integer|number|matrix|grid|linked list|binary)|return (the|all|an?|true|whether)\b|find (the|all)\b|power ?set)\b/i
+
 /** Acknowledgements and filler that never need an answer. */
 const FILLER =
   /^(ok|okay|right|great|cool|sure|yes|yeah|yep|no|nope|alright|mm+|hmm+|uh+|um+|thanks|thank you|got it|makes sense|sounds good|perfect|nice|good)[\s.!,]*$/i
@@ -24,6 +28,7 @@ export function questionScore(text: string): number {
   if (trimmed.includes('?')) score += 2
   if (OPENER.test(trimmed)) score += 1
   if (ANYWHERE.test(trimmed)) score += 1
+  if (PROBLEM_STATEMENT.test(trimmed)) score += 1
   return score
 }
 

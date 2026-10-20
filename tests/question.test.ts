@@ -9,7 +9,11 @@ describe('looksLikeQuestion', () => {
     'walk me through your approach for two sum',
     'what is the time complexity of merge sort',
     'Explain the difference between a process and a thread',
-    'implement an LRU cache in Java'
+    'implement an LRU cache in Java',
+    // Problem statements read aloud (real Deepgram output, mishearings included)
+    'Okay. So the question is, given an indigent array, numbs of unique elements, return all possible subsets to the powerset.',
+    "I'm given a binary error now, and the teacher gave and returned the maximum number of consecutive ones in the array.",
+    'given a string s find the length of the longest substring without repeating characters'
   ])('flags "%s"', (text) => {
     expect(looksLikeQuestion(text)).toBe(true)
   })

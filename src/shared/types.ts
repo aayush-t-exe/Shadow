@@ -23,8 +23,10 @@ export interface Settings {
   customBaseURL: string
   /** Speech-to-text language: English only, or multilingual (handles Hinglish). */
   sttLanguage: 'en' | 'multi'
-  /** Answer automatically when the other person finishes asking a question. */
+  /** Answer automatically when someone finishes asking a question. */
   autoAnswer: boolean
+  /** Whose questions get auto-answered: anyone (incl. the user reading a problem aloud) or only "Them". */
+  answerFrom: 'anyone' | 'them'
 }
 
 /** Anything with an API key: the AI providers plus speech-to-text services. */

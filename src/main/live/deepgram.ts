@@ -22,10 +22,14 @@ export interface FluxHandlers {
 
 const FLUX_URL = 'wss://api.deepgram.com/v2/listen'
 const CONNECT_TIMEOUT_MS = 10_000
+const FORCE_END_TIMEOUT_MS = 1500
 
 export class DeepgramFlux {
   private ws: WebSocket | null = null
   private closing = false
+  // True between StartOfTurn and EndOfTurn: someone is mid-sentence.
+  private inTurn = false
+  private turnEnded: (() => void) | null = null
 
   constructor(
     private apiKey: string,
@@ -99,6 +103,11 @@ export class DeepgramFlux {
     }
     // TurnInfo messages carry an `event`; Connected and other control messages don't.
     if (typeof msg.event !== 'string') return
+    if (msg.event === 'StartOfTurn') this.inTurn = true
+    if (msg.event === 'EndOfTurn') {
+      this.inTurn = false
+      this.turnEnded?.()
+    }
     this.handlers.onTurn({
       event: msg.event as FluxEvent,
       turnIndex: Number(msg.turn_index ?? 0),
@@ -110,16 +119,31 @@ export class DeepgramFlux {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(pcm)
   }
 
-  close() {
+  /**
+   * Ends the stream without losing the sentence in progress. CloseStream alone never
+   * finalizes a turn, so if someone is mid-turn we first send ForceEndTurn and wait
+   * (briefly) for its EndOfTurn.
+   */
+  async close(): Promise<void> {
     this.closing = true
     const ws = this.ws
     this.ws = null
-    if (!ws) return
-    try {
-      // Ask Deepgram to flush the final words, then hang up shortly after.
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'CloseStream' }))
-    } finally {
-      setTimeout(() => ws.terminate(), 500)
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      ws?.terminate()
+      return
     }
+    if (this.inTurn) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, FORCE_END_TIMEOUT_MS)
+        this.turnEnded = () => {
+          clearTimeout(timer)
+          resolve()
+        }
+        ws.send(JSON.stringify({ type: 'ForceEndTurn' }))
+      })
+      this.turnEnded = null
+    }
+    ws.send(JSON.stringify({ type: 'CloseStream' }))
+    setTimeout(() => ws.terminate(), 500)
   }
 }

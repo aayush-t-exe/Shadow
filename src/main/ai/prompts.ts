@@ -130,13 +130,16 @@ export function followupPrompt({ language }: PromptOptions, hasHistory: boolean)
 // ---- live listening ----
 
 /** Classifies the latest "Them" turn. Used with structured JSON output. */
-export const TRIAGE_PROMPT = `You watch a live technical conversation (often a coding lesson, viva or interview) for the user, labelled "You". The other side is labelled "Them". Decide whether Them's LATEST turn contains a question or request the user should respond to with substance.
+export const TRIAGE_PROMPT = `You watch a live technical conversation (often a coding lesson, viva or study session) for the user, labelled "You". The other side is labelled "Them". Decide whether the LATEST turn contains a question or request that deserves an answer now.
+
+- If the LATEST turn is from Them: needsAnswer is true when the user is expected to respond with substance.
+- If the LATEST turn is from You: needsAnswer is true only when the user is posing a question they want answered, e.g. reading a problem statement aloud ("given an array of unique elements, return all subsets") or asking "how do I…". It is false when the user is explaining their own answer, thinking aloud, or asking Them a question.
 
 Transcripts come from speech-to-text: expect missing punctuation, filler words and misheard terms ("hash mop" = hash map, "big o of end" = O(n), "jar va" = Java). Infer the intent.
 
 - Imperatives count: "walk me through…", "implement…", "tell me about…", "explain…".
 - needsAnswer is false for small talk, acknowledgements ("okay", "great"), call logistics ("can you hear me", "share your screen") and rhetorical questions Them answers themselves.
-- A question spread over several consecutive Them turns is one question: merge it.
+- A question spread over several consecutive turns by the same speaker is one question: merge it.
 - If the latest turn only continues a question already answered (listed below), needsAnswer is false.
 - "question" must be one clear, self-contained question in your own words, or "" if there is none: resolve "it"/"that" from context, correct misheard technical terms ("binary error" → "binary array", "flip the atmost k zeros" → "flip at most k zeros"), and drop filler ("so", "now", "um").`
 

@@ -255,9 +255,28 @@ function SettingsApp() {
           <span className="label">Auto-answer</span>
           <label className="check">
             <input type="checkbox" checked={settings.autoAnswer} onChange={(e) => save({ autoAnswer: e.target.checked })} />
-            Answer automatically when “Them” finishes asking a question
+            Answer automatically when a question is asked
           </label>
         </div>
+        <div className="row">
+          <span className="label">Answer questions from</span>
+          <span className="segmented">
+            {(
+              [
+                ['anyone', 'Anyone, including me'],
+                ['them', 'Only “Them”']
+              ] as const
+            ).map(([value, text]) => (
+              <button key={value} aria-pressed={settings.answerFrom === value} onClick={() => save({ answerFrom: value })}>
+                {text}
+              </button>
+            ))}
+          </span>
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          “Anyone” suits studying alone, e.g. reading a problem aloud. In a call, “Only Them” stops your own questions from
+          triggering answers. Either way, <b>Ctrl+Shift+Enter</b> answers the latest question right away.
+        </p>
       </section>
 
       <section className="card">

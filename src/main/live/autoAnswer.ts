@@ -7,7 +7,8 @@ import { getSettings } from '../settings'
 import { getModel } from '../ai/providers'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
 import { ask, onSessionReset } from '../session'
-import { getListenStatus, onTurnSignal, recentTranscript, type FinalTurn } from './listen'
+import { SPEAKER } from '@shared/live'
+import { onTurnSignal, recentTranscript, type FinalTurn } from './listen'
 
 // Decides when a finished "Them" turn deserves an automatic answer:
 //   1. free heuristic (question words, "?")       → most small talk stops here
@@ -41,13 +42,13 @@ async function classify(turn: FinalTurn): Promise<z.infer<typeof triageSchema> |
     const { output } = await generateText({
       model: await getModel(settings.answerModel, settings),
       instructions: TRIAGE_PROMPT,
-      prompt: `RECENT TRANSCRIPT (oldest → newest; the last Them line is the LATEST turn):
+      prompt: `RECENT TRANSCRIPT (oldest → newest):
 ${formatTranscript(recentTranscript(8, 4000))}
 
 ALREADY ANSWERED:
 ${answered.length ? answered.map((q) => `- ${q}`).join('\n') : '(none)'}
 
-LATEST THEM TURN: ${turn.text}`,
+LATEST TURN (${SPEAKER[turn.source]}): ${turn.text}`,
       output: Output.object({ schema: triageSchema }),
       maxOutputTokens: 300,
       maxRetries: 0,
@@ -62,11 +63,17 @@ LATEST THEM TURN: ${turn.text}`,
 }
 
 async function consider(turn: FinalTurn) {
-  if (!getSettings().autoAnswer || getListenStatus().state !== 'on') return
+  // No "still listening?" check: the final sentence is often delivered just after the user
+  // stops listening, and that's exactly the question they want answered.
+  const settings = getSettings()
+  if (!settings.autoAnswer) return
+  if (turn.source === 'mic' && settings.answerFrom !== 'anyone') return
   if (!looksLikeQuestion(turn.text)) return
 
-  await sleep(SELF_ANSWER_GRACE_MS)
-  if (lastMicStart > turn.endedAt) return
+  if (turn.source === 'system') {
+    await sleep(SELF_ANSWER_GRACE_MS)
+    if (lastMicStart > turn.endedAt) return
+  }
   if (Date.now() - lastAutoAnswerAt < COOLDOWN_MS) return
 
   const verdict = await classify(turn)
@@ -89,7 +96,7 @@ async function consider(turn: FinalTurn) {
 export function startAutoAnswer() {
   onTurnSignal((signal) => {
     if (signal.kind === 'mic-start') lastMicStart = Date.now()
-    else if (signal.kind === 'final' && signal.turn.source === 'system') void consider(signal.turn)
+    else if (signal.kind === 'final') void consider(signal.turn)
   })
   onSessionReset(() => {
     answered = []
