@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { looksLikeQuestion, questionScore } from '@shared/question'
@@ -69,6 +70,7 @@ async function consider(turn: FinalTurn) {
   if (Date.now() - lastAutoAnswerAt < COOLDOWN_MS) return
 
   const verdict = await classify(turn)
+  if (!app.isPackaged) console.log('[auto-answer]', JSON.stringify({ heard: turn.text, verdict }))
   let question: string
   if (verdict) {
     if (!verdict.needsAnswer || verdict.confidence < MIN_CONFIDENCE) return

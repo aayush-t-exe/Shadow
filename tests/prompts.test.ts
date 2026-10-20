@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { debugPrompt, followupPrompt, solvePrompt, solveUserText } from '../src/main/ai/prompts'
+import { TRIAGE_PROMPT, debugPrompt, followupPrompt, livePrompt, solvePrompt, solveUserText } from '../src/main/ai/prompts'
 import { keycaps } from '@shared/hotkeys'
 
 describe('prompts', () => {
@@ -41,6 +41,17 @@ describe('prompts', () => {
   it('uses a general prompt for a first question and a follow-up prompt afterwards', () => {
     expect(followupPrompt({ language: 'java', verbosity: 'concise' }, false)).toContain('programming tutor')
     expect(followupPrompt({ language: 'java', verbosity: 'concise' }, true)).toContain('Continue helping')
+  })
+
+  it('forbids LaTeX math in every answer prompt', () => {
+    const opts = { language: 'python', verbosity: 'concise' } as const
+    for (const p of [solvePrompt(opts), followupPrompt(opts, false), livePrompt(opts)]) {
+      expect(p).toContain('Never use LaTeX')
+    }
+  })
+
+  it('asks the classifier to correct misheard terms', () => {
+    expect(TRIAGE_PROMPT).toContain('correct misheard technical terms')
   })
 
   it('pluralises the screenshot count', () => {

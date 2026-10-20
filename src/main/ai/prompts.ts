@@ -8,6 +8,10 @@ import type { CodeLanguage, Verbosity } from '@shared/types'
 const LANGUAGE_NAME: Record<CodeLanguage, string> = { python: 'Python 3', java: 'Java 17' }
 export const LANGUAGE_TAG: Record<CodeLanguage, string> = { python: 'python', java: 'java' }
 
+// The overlay doesn't render math, and models love writing $k$.
+const NO_MATH =
+  'Never use LaTeX or $…$ math notation: write variables and expressions in backticks (`k`, `nums[i]`) and Big-O as plain text, e.g. O(n log n).'
+
 const LANGUAGE_RULES: Record<CodeLanguage, string> = {
   python: `PYTHON RULES
 - Python 3.11+, standard library only (collections, heapq, bisect, itertools, functools, math).
@@ -69,7 +73,7 @@ Trace the first example (or a tiny one you choose) step by step as a numbered li
 RULES
 - Prefer the optimal solution that fits the constraints. If it is much harder than a simpler one that also passes, mention the simpler one in one line under Approach.
 - Never claim you ran the code.
-- Use plain-text Big-O like O(n log n), not LaTeX.
+- ${NO_MATH}
 - No filler and no closing summary.
 
 ${LANGUAGE_RULES[language]}
@@ -118,7 +122,7 @@ export function debugUserText(screenshotCount: number): string {
 
 export function followupPrompt({ language }: PromptOptions, hasHistory: boolean): string {
   if (!hasHistory) {
-    return `You are Shadow, a concise programming tutor and assistant. Answer the user's question directly. If screenshots are attached, use them as context. When code is needed, write it in ${LANGUAGE_NAME[language]} in a \`\`\`${LANGUAGE_TAG[language]} block unless the user asks for another language. Use plain-text Big-O, not LaTeX. No filler.`
+    return `You are Shadow, a concise programming tutor and assistant. Answer the user's question directly. If screenshots are attached, use them as context. When code is needed, write it in ${LANGUAGE_NAME[language]} in a \`\`\`${LANGUAGE_TAG[language]} block unless the user asks for another language. ${NO_MATH} No filler.`
   }
   return `You are Shadow. Continue helping with the coding problem discussed above. Answer the user's follow-up directly and briefly. If the code changes, output the full updated code in one \`\`\`${LANGUAGE_TAG[language]} block (in ${LANGUAGE_NAME[language]} unless the user asks for another language). Only repeat the full section layout if the user asks for a complete re-solve.`
 }
@@ -134,7 +138,7 @@ Transcripts come from speech-to-text: expect missing punctuation, filler words a
 - needsAnswer is false for small talk, acknowledgements ("okay", "great"), call logistics ("can you hear me", "share your screen") and rhetorical questions Them answers themselves.
 - A question spread over several consecutive Them turns is one question: merge it.
 - If the latest turn only continues a question already answered (listed below), needsAnswer is false.
-- "question" must be one clear, self-contained sentence (resolve "it"/"that" from context), or "" if there is none.`
+- "question" must be one clear, self-contained question in your own words, or "" if there is none: resolve "it"/"that" from context, correct misheard technical terms ("binary error" → "binary array", "flip the atmost k zeros" → "flip at most k zeros"), and drop filler ("so", "now", "um").`
 
 export const LIVE_KINDS = ['coding', 'conceptual', 'system_design', 'behavioral', 'clarification', 'other'] as const
 export type LiveKind = (typeof LIVE_KINDS)[number]
@@ -159,7 +163,8 @@ Then the detail, depending on the kind of question:
 RULES
 - The transcript is noisy speech-to-text: silently fix misheard technical terms.
 - Prefer correct over clever; if unsure of a fact, say so instead of inventing specifics.
-- At most 250 words, not counting code. Plain-text Big-O, not LaTeX.`
+- At most 250 words, not counting code.
+- ${NO_MATH}`
 }
 
 /** "[02:14] Them: …" lines, newest last. */
