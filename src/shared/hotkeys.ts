@@ -3,6 +3,7 @@ export type HotkeyAction =
   | 'screenshot'
   | 'solve'
   | 'debug'
+  | 'listen'
   | 'copyCode'
   | 'reset'
   | 'moveUp'
@@ -23,6 +24,7 @@ export const HOTKEYS: HotkeyDef[] = [
   { action: 'screenshot', accelerator: 'CommandOrControl+Shift+S', label: 'Take screenshot' },
   { action: 'solve', accelerator: 'CommandOrControl+Shift+Enter', label: 'Solve / answer now' },
   { action: 'debug', accelerator: 'CommandOrControl+Shift+D', label: 'Debug with new screenshots' },
+  { action: 'listen', accelerator: 'CommandOrControl+Shift+L', label: 'Start / stop listening' },
   { action: 'copyCode', accelerator: 'CommandOrControl+Shift+C', label: 'Copy last code block' },
   { action: 'reset', accelerator: 'CommandOrControl+Shift+R', label: 'Reset session' },
   { action: 'moveUp', accelerator: 'CommandOrControl+Alt+Up', label: 'Move up' },

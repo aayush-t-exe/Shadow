@@ -11,9 +11,11 @@ import type {
   ModelListResult,
   ProviderId,
   ScreenshotInfo,
+  SecretId,
   Settings
 } from './types'
 import type { Rect } from './geometry'
+import type { AudioSourceId, ListenStatus, TranscriptLine } from './live'
 
 /** Every IPC channel name lives here so main, preload and renderer can't drift apart. */
 export const IPC = {
@@ -28,6 +30,8 @@ export const IPC = {
   deleteKey: 'keys:delete',
   testModel: 'models:test',
   listModels: 'models:list',
+  startListening: 'listen:start',
+  getListenStatus: 'listen:get-status',
   // renderer → main (fire and forget)
   cancel: 'session:cancel',
   reset: 'session:reset',
@@ -37,6 +41,9 @@ export const IPC = {
   openSettings: 'app:open-settings',
   openKeyPage: 'app:open-key-page',
   quit: 'app:quit',
+  stopListening: 'listen:stop',
+  pushAudio: 'listen:audio',
+  reportCaptureWarning: 'listen:capture-warning',
   // main → renderer
   answerStart: 'answer:start',
   answerStatus: 'answer:status',
@@ -46,7 +53,10 @@ export const IPC = {
   screenshots: 'session:screenshots',
   sessionReset: 'session:did-reset',
   toast: 'overlay:toast',
-  settingsChanged: 'settings:changed'
+  settingsChanged: 'settings:changed',
+  listenStatus: 'listen:status',
+  listenToggle: 'listen:toggle',
+  transcriptLine: 'listen:transcript-line'
 } as const
 
 type Unsubscribe = () => void
@@ -64,14 +74,22 @@ export interface ShadowAPI {
   setInteractiveRegions(rects: Rect[]): void
   hideOverlay(): void
   openSettings(): void
-  openKeyPage(provider: ProviderId): void
+  openKeyPage(id: SecretId): void
   quit(): void
+
+  /** Opens the transcription connections; capture audio only after this resolves. */
+  startListening(): Promise<void>
+  stopListening(): void
+  getListenStatus(): Promise<ListenStatus>
+  /** One 80 ms frame of 16 kHz mono PCM16. */
+  pushAudio(source: AudioSourceId, pcm: ArrayBuffer): void
+  reportCaptureWarning(warning: string | null): void
 
   getSettings(): Promise<Settings>
   setSettings(patch: Partial<Settings>): Promise<Settings>
   getKeyStatus(): Promise<KeyStatus>
-  setKey(provider: ProviderId, key: string): Promise<KeyStatus>
-  deleteKey(provider: ProviderId): Promise<KeyStatus>
+  setKey(id: SecretId, key: string): Promise<KeyStatus>
+  deleteKey(id: SecretId): Promise<KeyStatus>
   testModel(choice: ModelChoice): Promise<KeyTestResult>
   listModels(provider: ProviderId): Promise<ModelListResult>
 
@@ -84,4 +102,8 @@ export interface ShadowAPI {
   onSessionReset: Listener<void>
   onToast: Listener<string>
   onSettingsChanged: Listener<Settings>
+  onListenStatus: Listener<ListenStatus>
+  /** Main asks the overlay to start/stop listening (Ctrl+Shift+L); the overlay owns the microphone. */
+  onListenToggle: Listener<void>
+  onTranscriptLine: Listener<TranscriptLine>
 }

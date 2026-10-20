@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AnswerStartEvent, ErrorCode, ScreenshotInfo, Settings } from '@shared/types'
+import type { AudioLevels, ListenStatus, TranscriptLine } from '@shared/live'
 
 export interface Turn extends AnswerStartEvent {
   answer: string
@@ -18,9 +19,14 @@ interface OverlayState {
   toast: { key: number; text: string } | null
   panelOpen: boolean
   settings: Settings | null
+  listen: ListenStatus
+  levels: AudioLevels
+  transcript: TranscriptLine[]
   openPanel: () => void
   closePanel: () => void
 }
+
+const MAX_TRANSCRIPT_LINES = 200
 
 export const useOverlay = create<OverlayState>()((set) => ({
   turns: [],
@@ -28,6 +34,9 @@ export const useOverlay = create<OverlayState>()((set) => ({
   toast: null,
   panelOpen: false,
   settings: null,
+  listen: { state: 'off', startedAt: null, warning: null },
+  levels: { mic: 0, system: 0 },
+  transcript: [],
   openPanel: () => set({ panelOpen: true }),
   closePanel: () => set({ panelOpen: false })
 }))
@@ -76,6 +85,21 @@ export function connectToMain() {
     updateTurn(id, () => ({ streaming: false, status: null, error: { code, message } }))
   )
   api.onScreenshots((screenshots) => useOverlay.setState({ screenshots }))
-  api.onSessionReset(() => useOverlay.setState({ turns: [], panelOpen: false }))
+  api.onSessionReset(() => useOverlay.setState({ turns: [], transcript: [], panelOpen: false }))
   api.onToast(showToast)
+
+  void api.getListenStatus().then((listen) => useOverlay.setState({ listen }))
+  api.onListenStatus((listen) => useOverlay.setState({ listen }))
+  api.onTranscriptLine(upsertLine)
+}
+
+/** Partial updates replace the line with the same id; an empty final line (echo) removes it. */
+function upsertLine(line: TranscriptLine) {
+  useOverlay.setState((s) => {
+    const rest = s.transcript.filter((l) => l.id !== line.id)
+    if (line.final && !line.text) return { transcript: rest }
+    const index = s.transcript.findIndex((l) => l.id === line.id)
+    const next = index === -1 ? [...s.transcript, line] : s.transcript.map((l) => (l.id === line.id ? line : l))
+    return { transcript: next.slice(-MAX_TRANSCRIPT_LINES) }
+  })
 }

@@ -14,7 +14,9 @@ const settingsPatch = z
     answerModel: modelChoice,
     visionModel: modelChoice,
     ollamaBaseURL: z.url(),
-    customBaseURL: z.union([z.url(), z.literal('')])
+    customBaseURL: z.union([z.url(), z.literal('')]),
+    sttLanguage: z.enum(['en', 'multi']),
+    autoAnswer: z.boolean()
   })
   .partial()
   .strict()
@@ -26,7 +28,9 @@ const DEFAULTS: Settings = {
   answerModel: providerInfo('gemini').defaultModel,
   visionModel: providerInfo('gemini').defaultModel,
   ollamaBaseURL: 'http://127.0.0.1:11434',
-  customBaseURL: ''
+  customBaseURL: '',
+  sttLanguage: 'en',
+  autoAnswer: true
 }
 
 let store: Store<Settings> | undefined

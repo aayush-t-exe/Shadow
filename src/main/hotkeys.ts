@@ -20,6 +20,10 @@ const ACTIONS: Record<HotkeyAction, () => void> = {
     showOverlay()
     ask({ mode: 'debug' }).catch(reportError)
   },
+  listen: () => {
+    showOverlay()
+    broadcast(IPC.listenToggle)
+  },
   copyCode: copyLastCode,
   reset: resetSession,
   moveUp: () => moveOverlay(0, -1),

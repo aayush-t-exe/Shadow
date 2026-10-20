@@ -12,10 +12,13 @@ import {
   debugPrompt,
   debugUserText,
   followupPrompt,
+  formatTranscript,
+  livePrompt,
   solvePrompt,
   solveUserText
 } from './ai/prompts'
 import { broadcast } from './windows'
+import { clearTranscript, getListenStatus, lastTheirTurn, recentTranscript } from './live/listen'
 
 // The session holds everything about the current problem: queued screenshots,
 // the conversation so far, and the answer that is streaming right now.
@@ -48,12 +51,17 @@ export function cancelAnswer(): void {
   inflight?.controller.abort()
 }
 
+const resetListeners = new Set<() => void>()
+export const onSessionReset = (fn: () => void) => resetListeners.add(fn)
+
 export function resetSession(): void {
+  resetListeners.forEach((fn) => fn())
   cancelAnswer()
   copyWhenCodeCompletes = false
   screenshots = []
   history = []
   currentAnswer = ''
+  clearTranscript()
   emitScreenshots()
   broadcast(IPC.sessionReset)
 }
@@ -88,11 +96,20 @@ function lastCodeBlockIsClosed(markdown: string): boolean {
   return fences > 0 && fences % 2 === 0
 }
 
-/** Ctrl+Shift+Enter: solve the queue, or debug if a solution already exists and new shots are queued. */
+/**
+ * Ctrl+Shift+Enter. While listening with nothing queued: answer the last question heard,
+ * looking at the screen too. Otherwise: solve the queue, or debug if a solution already
+ * exists and new shots are queued.
+ */
 export function smartAnswer(): Promise<void> {
+  if (getListenStatus().state === 'on' && screenshots.length === 0 && lastTheirTurn()) {
+    return ask({ mode: 'live', withScreen: true })
+  }
   const mode: AskMode = history.length > 0 && screenshots.length > 0 ? 'debug' : 'solve'
   return ask({ mode })
 }
+
+export const isAnswering = () => inflight !== null
 
 const imageParts = (shots: Screenshot[]) =>
   shots.map((s) => ({ type: 'file' as const, mediaType: 'image/png', data: s.png }))
@@ -121,8 +138,13 @@ export async function ask(req: AskRequest): Promise<void> {
   let mode = req.mode
   if (mode === 'debug' && history.length === 0) mode = 'solve'
   if (mode === 'followup' && !req.text?.trim()) return
+  const liveQuestion = mode === 'live' ? (req.text?.trim() || lastTheirTurn()?.text) : undefined
+  if (mode === 'live' && !liveQuestion) {
+    broadcast(IPC.toast, 'No question heard yet')
+    return
+  }
   // Solve/debug with an empty queue means "use what's on screen right now".
-  if (mode !== 'followup' && screenshots.length === 0) await takeScreenshot()
+  if ((mode === 'solve' || mode === 'debug' || req.withScreen) && screenshots.length === 0) await takeScreenshot()
 
   const shots = screenshots
   screenshots = []
@@ -147,6 +169,11 @@ export async function ask(req: AskRequest): Promise<void> {
       userText = req.text!.trim()
       context = history
       break
+    case 'live':
+      instructions = livePrompt(promptOptions)
+      userText = `RECENT TRANSCRIPT (oldest → newest):\n${formatTranscript(recentTranscript()) || '(empty)'}\n\nQUESTION: ${liveQuestion}`
+      context = history
+      break
   }
 
   const id = crypto.randomUUID()
@@ -157,7 +184,7 @@ export async function ask(req: AskRequest): Promise<void> {
   broadcast(IPC.answerStart, {
     id,
     mode,
-    prompt: mode === 'followup' ? userText : mode === 'solve' ? 'Solve this problem' : 'Debug this',
+    prompt: { solve: 'Solve this problem', debug: 'Debug this', followup: userText, live: `🎙 ${liveQuestion}` }[mode],
     screenshotCount: shots.length,
     provider: model.provider,
     modelId: model.modelId
@@ -211,7 +238,9 @@ export async function ask(req: AskRequest): Promise<void> {
     }
     // History stays text-only: the answer's "## Problem" section already captures what the
     // screenshots said, and re-sending images on every follow-up would waste free-tier quota.
-    const userTurn = shots.length > 0 ? `${userText} [${shots.length} screenshot(s) attached]` : userText
+    // Live turns keep just the question; the transcript is re-sent fresh with each live answer.
+    const asked = mode === 'live' ? `Question asked in the conversation: ${liveQuestion}` : userText
+    const userTurn = shots.length > 0 ? `${asked} [${shots.length} screenshot(s) attached]` : asked
     history = [...context, { role: 'user', content: userTurn }, { role: 'assistant', content: currentAnswer }]
     broadcast(IPC.answerDone, { id, aborted: false, firstTokenMs, totalMs: Math.round(performance.now() - startedAt) })
   } catch (err) {

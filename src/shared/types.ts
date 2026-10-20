@@ -21,17 +21,27 @@ export interface Settings {
   visionModel: ModelChoice
   ollamaBaseURL: string
   customBaseURL: string
+  /** Speech-to-text language: English only, or multilingual (handles Hinglish). */
+  sttLanguage: 'en' | 'multi'
+  /** Answer automatically when the other person finishes asking a question. */
+  autoAnswer: boolean
 }
 
-/** What the renderer is allowed to know about saved keys: never the key itself. */
-export type KeyStatus = Partial<Record<ProviderId, { last4: string }>>
+/** Anything with an API key: the AI providers plus speech-to-text services. */
+export type SecretId = ProviderId | 'deepgram'
 
-export type AskMode = 'solve' | 'debug' | 'followup'
+/** What the renderer is allowed to know about saved keys: never the key itself. */
+export type KeyStatus = Partial<Record<SecretId, { last4: string }>>
+
+/** live = answer a question heard in the conversation, using the transcript as context. */
+export type AskMode = 'solve' | 'debug' | 'followup' | 'live'
 
 export interface AskRequest {
   mode: AskMode
-  /** Typed question for follow-ups; ignored for solve/debug. */
+  /** Typed follow-up, or the spoken question for live mode (defaults to the last "Them" turn). */
   text?: string
+  /** Live mode: also attach a screenshot of the current screen. */
+  withScreen?: boolean
 }
 
 export interface ScreenshotInfo {

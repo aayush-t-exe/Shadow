@@ -25,6 +25,12 @@ const api: ShadowAPI = {
   openKeyPage: (provider) => ipcRenderer.send(IPC.openKeyPage, provider),
   quit: () => ipcRenderer.send(IPC.quit),
 
+  startListening: () => ipcRenderer.invoke(IPC.startListening),
+  stopListening: () => ipcRenderer.send(IPC.stopListening),
+  getListenStatus: () => ipcRenderer.invoke(IPC.getListenStatus),
+  pushAudio: (source, pcm) => ipcRenderer.send(IPC.pushAudio, source, new Uint8Array(pcm)),
+  reportCaptureWarning: (warning) => ipcRenderer.send(IPC.reportCaptureWarning, warning),
+
   getSettings: () => ipcRenderer.invoke(IPC.getSettings),
   setSettings: (patch) => ipcRenderer.invoke(IPC.setSettings, patch),
   getKeyStatus: () => ipcRenderer.invoke(IPC.getKeyStatus),
@@ -41,7 +47,10 @@ const api: ShadowAPI = {
   onScreenshots: listener(IPC.screenshots),
   onSessionReset: listener(IPC.sessionReset),
   onToast: listener(IPC.toast),
-  onSettingsChanged: listener(IPC.settingsChanged)
+  onSettingsChanged: listener(IPC.settingsChanged),
+  onListenStatus: listener(IPC.listenStatus),
+  onListenToggle: listener(IPC.listenToggle),
+  onTranscriptLine: listener(IPC.transcriptLine)
 }
 
 contextBridge.exposeInMainWorld('shadow', api)

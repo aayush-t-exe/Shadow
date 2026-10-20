@@ -4,6 +4,7 @@ import type { CodeLanguage } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 import { reportError as report, useOverlay } from './store'
+import { ListenToggle } from './ListenToggle'
 
 const tip = (label: string, action: HotkeyAction) => `${label}  (${keycaps(hotkeyFor(action).accelerator).join('+')})`
 
@@ -31,6 +32,7 @@ export function CommandPill() {
       <button className="btn" title="Ask a question" onClick={openPanel}>
         <MessageSquare /> Ask
       </button>
+      <ListenToggle />
 
       <span className="divider" />
 

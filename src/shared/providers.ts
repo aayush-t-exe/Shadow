@@ -1,4 +1,4 @@
-import type { ModelChoice, ProviderId } from './types'
+import type { ModelChoice, ProviderId, SecretId } from './types'
 
 export interface ProviderInfo {
   id: ProviderId
@@ -70,3 +70,18 @@ export const PROVIDERS: ProviderInfo[] = [
 ]
 
 export const providerInfo = (id: ProviderId): ProviderInfo => PROVIDERS.find((p) => p.id === id)!
+
+/** Speech-to-text services; they need keys but aren't chat models. */
+export const SPEECH_PROVIDERS = [
+  {
+    id: 'deepgram' as const,
+    label: 'Deepgram (live transcription)',
+    keyUrl: 'https://console.deepgram.com/signup',
+    note: '$200 free credit, no card needed.'
+  }
+]
+
+/** Every key page Shadow may open, by secret id. The renderer can only name an id, never a URL. */
+export function keyUrlFor(id: SecretId): string | undefined {
+  return id === 'deepgram' ? SPEECH_PROVIDERS[0].keyUrl : providerInfo(id).keyUrl
+}

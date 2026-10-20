@@ -1,6 +1,6 @@
 import { safeStorage } from 'electron'
 import Store from 'electron-store'
-import type { KeyStatus, ProviderId } from '@shared/types'
+import type { KeyStatus, SecretId } from '@shared/types'
 
 // API keys are encrypted with Windows DPAPI (via safeStorage) and stored as base64.
 // Threat model: protects keys from other Windows users and from anyone copying the
@@ -8,13 +8,13 @@ import type { KeyStatus, ProviderId } from '@shared/types'
 // as the same user. That is the same guarantee browsers give saved passwords.
 
 interface Vault {
-  keys: Partial<Record<ProviderId, { cipher: string; last4: string }>>
+  keys: Partial<Record<SecretId, { cipher: string; last4: string }>>
 }
 
 let vault: Store<Vault> | undefined
 const getVault = () => (vault ??= new Store<Vault>({ name: 'vault', defaults: { keys: {} } }))
 
-export async function setApiKey(provider: ProviderId, key: string): Promise<void> {
+export async function setApiKey(provider: SecretId, key: string): Promise<void> {
   const clean = key.trim()
   if (!clean) throw new Error('Key is empty')
   if (!(await safeStorage.isAsyncEncryptionAvailable())) {
@@ -24,7 +24,7 @@ export async function setApiKey(provider: ProviderId, key: string): Promise<void
   getVault().set(`keys.${provider}`, { cipher, last4: clean.slice(-4) })
 }
 
-export async function getApiKey(provider: ProviderId): Promise<string | undefined> {
+export async function getApiKey(provider: SecretId): Promise<string | undefined> {
   const entry = getVault().get('keys')[provider]
   if (!entry) return undefined
   const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(entry.cipher, 'base64'))
@@ -32,7 +32,7 @@ export async function getApiKey(provider: ProviderId): Promise<string | undefine
   return result
 }
 
-export function deleteApiKey(provider: ProviderId): void {
+export function deleteApiKey(provider: SecretId): void {
   const keys = { ...getVault().get('keys') }
   delete keys[provider]
   getVault().set('keys', keys)

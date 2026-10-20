@@ -1,5 +1,7 @@
-import { app, globalShortcut, session } from 'electron'
+import { app, globalShortcut } from 'electron'
 import { IPC } from '@shared/api'
+import { installPermissions } from './live/capture'
+import { startAutoAnswer } from './live/autoAnswer'
 import { registerIpc } from './ipc'
 import { registerHotkeys } from './hotkeys'
 import { createTray } from './tray'
@@ -13,14 +15,10 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId('app.shadow.copilot')
 
-    // Deny every browser permission (camera, notifications, geolocation…) except writing to
-    // the clipboard (the code blocks' copy buttons). Audio capture gets its own narrow
-    // allowance when live listening is added.
-    const allowed = new Set(['clipboard-sanitized-write'])
-    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed.has(permission)))
-    session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission))
+    installPermissions()
 
     registerIpc()
+    startAutoAnswer()
     const overlay = createOverlay()
     createTray()
 

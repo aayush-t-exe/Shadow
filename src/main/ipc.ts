@@ -2,8 +2,10 @@ import { app, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 
 import { generateText } from 'ai'
 import { z } from 'zod'
 import { IPC } from '@shared/api'
-import { providerInfo } from '@shared/providers'
-import type { KeyTestResult, ModelChoice, ProviderId } from '@shared/types'
+import { keyUrlFor } from '@shared/providers'
+import type { KeyTestResult, ModelChoice } from '@shared/types'
+import { isTrustedUrl } from './trust'
+import { getListenStatus, pushAudio, setCaptureWarning, startListening, stopListening } from './live/listen'
 import { getSettings, updateSettings } from './settings'
 import { deleteApiKey, keyStatus, setApiKey } from './secrets'
 import { getModel, listModels } from './ai/providers'
@@ -13,12 +15,7 @@ import { broadcast, hideOverlay, openSettingsWindow, setInteractiveRegions } fro
 
 // Only our own pages may call into main. A page that somehow navigated elsewhere
 // (or an injected frame) gets nothing back.
-function isTrusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url ?? ''
-  const devUrl = process.env.ELECTRON_RENDERER_URL
-  if (!app.isPackaged && devUrl && url.startsWith(devUrl)) return true
-  return url.startsWith('file://')
-}
+const isTrusted = (event: IpcMainEvent | IpcMainInvokeEvent) => isTrustedUrl(event.senderFrame?.url ?? '')
 
 function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R) {
   ipcMain.handle(channel, (event, ...args) => {
@@ -34,7 +31,12 @@ function on<A extends unknown[]>(channel: string, fn: (...args: A) => void) {
 }
 
 const providerId = z.enum(['gemini', 'groq', 'openai', 'anthropic', 'openrouter', 'ollama', 'custom'])
-const askRequest = z.object({ mode: z.enum(['solve', 'debug', 'followup']), text: z.string().max(4000).optional() })
+const secretId = z.enum([...providerId.options, 'deepgram'])
+const askRequest = z.object({
+  mode: z.enum(['solve', 'debug', 'followup', 'live']),
+  text: z.string().max(4000).optional(),
+  withScreen: z.boolean().optional()
+})
 const modelChoice = z.object({ provider: providerId, modelId: z.string().min(1).max(200), vision: z.boolean() })
 const rectList = z.array(z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })).max(50)
 
@@ -67,12 +69,12 @@ export function registerIpc() {
     return next
   })
   handle(IPC.getKeyStatus, () => keyStatus())
-  handle(IPC.setKey, async (provider: unknown, key: unknown) => {
-    await setApiKey(providerId.parse(provider), z.string().min(1).max(500).parse(key))
+  handle(IPC.setKey, async (id: unknown, key: unknown) => {
+    await setApiKey(secretId.parse(id), z.string().min(1).max(500).parse(key))
     return keyStatus()
   })
-  handle(IPC.deleteKey, (provider: unknown) => {
-    deleteApiKey(providerId.parse(provider))
+  handle(IPC.deleteKey, (id: unknown) => {
+    deleteApiKey(secretId.parse(id))
     return keyStatus()
   })
   handle(IPC.testModel, (choice: unknown) => testModel(modelChoice.parse(choice)))
@@ -82,13 +84,26 @@ export function registerIpc() {
   on(IPC.reset, () => resetSession())
   on(IPC.copyCode, () => copyLastCode())
   on(IPC.setInteractiveRegions, (rects: unknown) => setInteractiveRegions(rectList.parse(rects)))
+  handle(IPC.startListening, () => startListening())
+  handle(IPC.getListenStatus, () => getListenStatus())
+  on(IPC.stopListening, () => stopListening())
+  on(IPC.pushAudio, (source: unknown, pcm: unknown) => {
+    // 80 ms of 16 kHz PCM16 is 2560 bytes; anything far bigger isn't from our worklet.
+    if ((source === 'mic' || source === 'system') && pcm instanceof Uint8Array && pcm.byteLength <= 64_000) {
+      pushAudio(source, Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength))
+    }
+  })
+  on(IPC.reportCaptureWarning, (warning: unknown) =>
+    setCaptureWarning(typeof warning === 'string' ? warning.slice(0, 300) : null)
+  )
+
   on(IPC.hideOverlay, () => hideOverlay())
   on(IPC.openSettings, () => openSettingsWindow())
   on(IPC.quit, () => app.quit())
   // The renderer names a provider, never a URL, so it can only open the known key pages.
-  on(IPC.openKeyPage, (provider: unknown) => {
-    const parsed = providerId.safeParse(provider)
-    const url = parsed.success ? providerInfo(parsed.data as ProviderId).keyUrl : undefined
+  on(IPC.openKeyPage, (id: unknown) => {
+    const parsed = secretId.safeParse(id)
+    const url = parsed.success ? keyUrlFor(parsed.data) : undefined
     if (url) void shell.openExternal(url)
   })
 }

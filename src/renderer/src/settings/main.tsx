@@ -5,8 +5,8 @@ import '../styles/base.css'
 import '../overlay/overlay.css'
 import './settings.css'
 import { HOTKEYS } from '@shared/hotkeys'
-import { PROVIDERS, providerInfo } from '@shared/providers'
-import type { KeyStatus, KeyTestResult, ModelChoice, ProviderId, Settings } from '@shared/types'
+import { PROVIDERS, SPEECH_PROVIDERS, providerInfo } from '@shared/providers'
+import type { KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 
@@ -122,8 +122,15 @@ function ModelPicker({ value, onChange }: { value: ModelChoice; onChange: (next:
 
 // ---------- API keys ----------
 
-function KeyRow({ provider, status, onStatus }: { provider: ProviderId; status: KeyStatus; onStatus: (s: KeyStatus) => void }) {
-  const info = providerInfo(provider)
+interface KeyRowProps {
+  id: SecretId
+  label: string
+  hasKeyPage: boolean
+  status: KeyStatus
+  onStatus: (s: KeyStatus) => void
+}
+
+function KeyRow({ id: provider, label, hasKeyPage, status, onStatus }: KeyRowProps) {
   const saved = status[provider]
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
@@ -141,9 +148,9 @@ function KeyRow({ provider, status, onStatus }: { provider: ProviderId; status: 
   return (
     <div className="key-row">
       <div>
-        <span className="key-name">{info.label}</span>
+        <span className="key-name">{label}</span>
         <span className={`key-status ${saved ? 'saved' : ''}`}>{saved ? `Saved ••••${saved.last4}` : 'Not set'}</span>
-        {info.keyUrl && (
+        {hasKeyPage && (
           <button className="link" onClick={() => api.openKeyPage(provider)}>
             Get a key <ExternalLink size={10} style={{ display: 'inline' }} />
           </button>
@@ -216,8 +223,41 @@ function SettingsApp() {
         <h2>API keys</h2>
         <p className="hint">You only need a key for the providers you actually use.</p>
         {PROVIDERS.filter((p) => p.needsKey).map((p) => (
-          <KeyRow key={p.id} provider={p.id} status={keys} onStatus={setKeys} />
+          <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage={!!p.keyUrl} status={keys} onStatus={setKeys} />
         ))}
+        {SPEECH_PROVIDERS.map((p) => (
+          <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage status={keys} onStatus={setKeys} />
+        ))}
+      </section>
+
+      <section className="card">
+        <h2>Live listening</h2>
+        <p className="hint">
+          Transcribes your microphone (“You”) and your PC's sound (“Them”) with Deepgram. Use headphones on calls so the other
+          person's voice doesn't leak into your mic.
+        </p>
+        <div className="row">
+          <span className="label">Language</span>
+          <span className="segmented">
+            {(
+              [
+                ['en', 'English'],
+                ['multi', 'English + Hindi']
+              ] as const
+            ).map(([value, text]) => (
+              <button key={value} aria-pressed={settings.sttLanguage === value} onClick={() => save({ sttLanguage: value })}>
+                {text}
+              </button>
+            ))}
+          </span>
+        </div>
+        <div className="row">
+          <span className="label">Auto-answer</span>
+          <label className="check">
+            <input type="checkbox" checked={settings.autoAnswer} onChange={(e) => save({ autoAnswer: e.target.checked })} />
+            Answer automatically when “Them” finishes asking a question
+          </label>
+        </div>
       </section>
 
       <section className="card">
