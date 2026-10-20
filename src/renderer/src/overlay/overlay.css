@@ -410,6 +410,80 @@
   color: var(--sh-text-placeholder);
 }
 
+/* ---------- first run ---------- */
+.welcome {
+  position: relative;
+  width: 440px;
+  padding: 18px 20px 16px;
+  border-radius: var(--sh-r-panel);
+  animation: panel-in 240ms var(--sh-ease-out) both;
+}
+.welcome-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.welcome-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.welcome-title h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.welcome-title p {
+  margin: 2px 0 0;
+  color: var(--sh-text-3);
+  font-size: 12px;
+}
+.welcome-steps {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.welcome-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--sh-hairline);
+  font-size: 12.5px;
+  counter-increment: step;
+}
+.welcome-steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--sh-accent-grad);
+  box-shadow: var(--sh-accent-ring);
+  font-size: 11px;
+  font-weight: 600;
+}
+.welcome-steps li span {
+  flex: 1;
+}
+
+.empty-hints {
+  margin: 0;
+  padding: 14px 16px 4px;
+  list-style: none;
+}
+.empty-hints li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: var(--sh-text-2);
+  font-size: 12.5px;
+}
+
 /* ---------- listening ---------- */
 .btn-live {
   gap: 8px;
@@ -562,4 +636,10 @@
   /* Cascadia Code draws -> as → and >= as ≥; students must see the exact characters they'll type. */
   font-variant-ligatures: none;
   font-feature-settings: 'calt' 0, 'liga' 0;
+}
+/* Wrap long lines instead of scrolling sideways in a narrow overlay. */
+.answer pre,
+.answer pre code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

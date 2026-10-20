@@ -54,6 +54,7 @@ export const IPC = {
   sessionReset: 'session:did-reset',
   toast: 'overlay:toast',
   settingsChanged: 'settings:changed',
+  keysChanged: 'keys:changed',
   listenStatus: 'listen:status',
   listenToggle: 'listen:toggle',
   transcriptLine: 'listen:transcript-line'
@@ -102,6 +103,7 @@ export interface ShadowAPI {
   onSessionReset: Listener<void>
   onToast: Listener<string>
   onSettingsChanged: Listener<Settings>
+  onKeysChanged: Listener<KeyStatus>
   onListenStatus: Listener<ListenStatus>
   /** Main asks the overlay to start/stop listening (Ctrl+Shift+L); the overlay owns the microphone. */
   onListenToggle: Listener<void>

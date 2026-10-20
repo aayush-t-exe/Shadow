@@ -71,10 +71,12 @@ export function registerIpc() {
   handle(IPC.getKeyStatus, () => keyStatus())
   handle(IPC.setKey, async (id: unknown, key: unknown) => {
     await setApiKey(secretId.parse(id), z.string().min(1).max(500).parse(key))
+    broadcast(IPC.keysChanged, keyStatus())
     return keyStatus()
   })
   handle(IPC.deleteKey, (id: unknown) => {
     deleteApiKey(secretId.parse(id))
+    broadcast(IPC.keysChanged, keyStatus())
     return keyStatus()
   })
   handle(IPC.testModel, (choice: unknown) => testModel(modelChoice.parse(choice)))

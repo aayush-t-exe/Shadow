@@ -13,7 +13,9 @@
     "preview": "node scripts/electron-vite.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --win"
+    "showcase": "node scripts/showcase/run.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "dist": "node scripts/electron-vite.mjs build && electron-builder --win"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.84",
@@ -39,6 +41,7 @@
     "electron": "^44.9.2",
     "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
+    "gifenc": "^1.0.3",
     "lucide-react": "^1.60.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

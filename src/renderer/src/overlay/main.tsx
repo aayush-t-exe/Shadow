@@ -8,17 +8,9 @@ import { ResponsePanel } from './ResponsePanel'
 import { connectToMain, useOverlay } from './store'
 import { connectListening } from './listening'
 import { TranscriptPane } from './TranscriptPane'
+import { Welcome } from './Welcome'
+import { Toast } from './Toast'
 import { useClickThrough } from './useClickThrough'
-
-function Toast() {
-  const toast = useOverlay((s) => s.toast)
-  if (!toast) return null
-  return (
-    <div key={toast.key} className="toast glass">
-      {toast.text}
-    </div>
-  )
-}
 
 function Overlay() {
   useClickThrough()
@@ -28,6 +20,7 @@ function Overlay() {
     <main className="stage">
       <CommandPill />
       <Toast />
+      <Welcome />
       <ScreenshotStrip />
       <div className="workspace">
         {showTranscript && <TranscriptPane />}

@@ -26,7 +26,9 @@ export default defineConfig({
       rolldownOptions: {
         input: {
           overlay: resolve('src/renderer/overlay.html'),
-          settings: resolve('src/renderer/settings.html')
+          settings: resolve('src/renderer/settings.html'),
+          // The README screenshot studio is only built by `npm run showcase`.
+          ...(process.env.SHADOW_SHOWCASE ? { showcase: resolve('src/renderer/showcase.html') } : {})
         }
       }
     }

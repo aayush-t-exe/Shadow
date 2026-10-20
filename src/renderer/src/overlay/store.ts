@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AnswerStartEvent, ErrorCode, ScreenshotInfo, Settings } from '@shared/types'
+import type { AnswerStartEvent, ErrorCode, KeyStatus, ScreenshotInfo, Settings } from '@shared/types'
 import type { AudioLevels, ListenStatus, TranscriptLine } from '@shared/live'
 
 export interface Turn extends AnswerStartEvent {
@@ -22,6 +22,8 @@ interface OverlayState {
   listen: ListenStatus
   levels: AudioLevels
   transcript: TranscriptLine[]
+  /** null until loaded; used to show the first-run welcome card. */
+  keys: KeyStatus | null
   openPanel: () => void
   closePanel: () => void
 }
@@ -37,6 +39,7 @@ export const useOverlay = create<OverlayState>()((set) => ({
   listen: { state: 'off', startedAt: null, warning: null },
   levels: { mic: 0, system: 0 },
   transcript: [],
+  keys: null,
   openPanel: () => set({ panelOpen: true }),
   closePanel: () => set({ panelOpen: false })
 }))
@@ -87,6 +90,9 @@ export function connectToMain() {
   api.onScreenshots((screenshots) => useOverlay.setState({ screenshots }))
   api.onSessionReset(() => useOverlay.setState({ turns: [], transcript: [], panelOpen: false }))
   api.onToast(showToast)
+
+  void api.getKeyStatus().then((keys) => useOverlay.setState({ keys }))
+  api.onKeysChanged((keys) => useOverlay.setState({ keys }))
 
   void api.getListenStatus().then((listen) => useOverlay.setState({ listen }))
   api.onListenStatus((listen) => useOverlay.setState({ listen }))

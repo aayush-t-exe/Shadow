@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import { ArrowUp, Copy, Image, RotateCcw, Square, TriangleAlert, X } from 'lucide-react'
 import { hotkeyFor, keycaps } from '@shared/hotkeys'
 import { providerInfo } from '@shared/providers'
+import { Keycaps } from '../components/Keycaps'
 import { Answer } from './Answer'
 import { reportError, useOverlay, type Turn } from './store'
 
@@ -148,12 +149,24 @@ export function ResponsePanel() {
         </button>
       </header>
 
-      {turns.length > 0 && (
+      {turns.length > 0 ? (
         <div className="panel-body" ref={bodyRef} onScroll={onScroll}>
           {turns.map((t) => (
             <TurnView key={t.id} turn={t} />
           ))}
         </div>
+      ) : (
+        <ul className="empty-hints">
+          <li>
+            <Keycaps accelerator={hotkeyFor('solve').accelerator} /> Solve the coding problem on your screen
+          </li>
+          <li>
+            <Keycaps accelerator={hotkeyFor('listen').accelerator} /> Listen and answer questions as they're asked
+          </li>
+          <li>
+            <span className="key">↓</span> Or type any programming question below
+          </li>
+        </ul>
       )}
 
       <footer className="panel-footer">

@@ -1,5 +1,8 @@
 # Shadow — Build Plan
 
+> **Status (Oct 2026):** M0–M5 are done and tested on real problems, and v0.1.0 ships as a
+> Windows installer. What's left is tracked in the README's roadmap.
+
 An open-source AI desktop copilot for Windows 11. It looks at your screen and listens to a
 conversation (mic + system audio), detects coding questions, and streams back answers in
 **Python** or **Java**. College project; deliberately built *without* screen-share

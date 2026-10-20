@@ -1,0 +1,27 @@
+appId: app.shadow.copilot
+productName: Shadow
+copyright: Copyright © 2026 Aayush Thakur
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+  # the README screenshot studio is never shipped
+  - '!out/renderer/showcase.html'
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  # A fixed name keeps https://github.com/aayush-t-exe/shadow/releases/latest/download/Shadow-Setup.exe stable
+  artifactName: Shadow-Setup.exe
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Shadow
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+publish: null

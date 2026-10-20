@@ -48,6 +48,7 @@ const api: ShadowAPI = {
   onSessionReset: listener(IPC.sessionReset),
   onToast: listener(IPC.toast),
   onSettingsChanged: listener(IPC.settingsChanged),
+  onKeysChanged: listener(IPC.keysChanged),
   onListenStatus: listener(IPC.listenStatus),
   onListenToggle: listener(IPC.listenToggle),
   onTranscriptLine: listener(IPC.transcriptLine)
