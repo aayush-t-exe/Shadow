@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+@source '../../../../node_modules/streamdown/dist/*.js';
+@source '../../../../node_modules/@streamdown/code/dist/*.js';
+
+/* Shadow design tokens (research/05-cluely-ui-design.md §5.1).
+   The overlay is always dark: there is no light theme for something that floats over any app. */
+:root {
+  /* More opaque than Cluely's 0.8: Windows can't blur what's behind, so over a white
+     web page anything lighter makes the answer hard to read. */
+  --sh-surface: hsla(240, 12%, 9%, 0.93);
+  --sh-surface-top: hsla(240, 12%, 11%, 0.91);
+  --sh-surface-raised: linear-gradient(180deg, #2c2e38 0%, #24262e 100%);
+  --sh-surface-input: rgba(0, 0, 0, 0.22);
+  --sh-surface-hover: rgba(237, 238, 242, 0.08);
+  --sh-surface-press: rgba(237, 238, 242, 0.14);
+
+  --sh-ring: 0 0 0 1px rgba(200, 210, 255, 0.18);
+  --sh-highlight-top: 0 -0.5px 0 0 rgba(255, 255, 255, 0.55);
+  --sh-hairline: rgba(255, 255, 255, 0.1);
+  --sh-border-input: rgba(160, 160, 175, 0.35);
+  --sh-btn-inset: inset 0 0.7px 0 0 rgba(175, 180, 200, 0.6);
+
+  --sh-text: #ecedf1;
+  --sh-text-2: #b3b4bc;
+  --sh-text-3: #8a8c94;
+  --sh-text-placeholder: rgba(255, 255, 255, 0.45);
+
+  --sh-accent: #6d5ef5;
+  --sh-accent-grad: linear-gradient(180deg, #5b4be8 0%, #3b2fb0 100%);
+  --sh-accent-ring: 0 0 0 0.5px #4c3fd0, inset 0 0.5px 0 0 #a89fff, inset 0 -1px 0 0 #2e2490;
+  --sh-live: #f87171;
+  --sh-success: #34d399;
+  --sh-danger-bg: rgba(255, 69, 58, 0.14);
+  --sh-danger-text: #ff8a82;
+
+  --sh-r-panel: 18px;
+  --sh-r-input: 12px;
+  --sh-r-key: 5px;
+
+  --sh-font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --sh-mono: 'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+
+  --sh-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --sh-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sh-ease-in: cubic-bezier(0.4, 0, 0.6, 1);
+
+  color-scheme: dark;
+}
+
+/* Colors Streamdown's built-in components expect (shadcn naming), mapped onto Shadow's palette. */
+@theme inline {
+  --color-background: #15151b;
+  --color-foreground: var(--sh-text);
+  --color-muted: rgba(255, 255, 255, 0.06);
+  --color-muted-foreground: var(--sh-text-3);
+  --color-border: var(--sh-hairline);
+  --color-primary: var(--sh-accent);
+  --color-primary-foreground: #ffffff;
+  --color-sidebar: #1b1b22;
+  --font-sans: var(--sh-font);
+  --font-mono: var(--sh-mono);
+}
+
+html,
+body {
+  margin: 0;
+  font-family: var(--sh-font);
+  color: var(--sh-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+body.overlay {
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+body.settings {
+  background: #0f0f13;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
