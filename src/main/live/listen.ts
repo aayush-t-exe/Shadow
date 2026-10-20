@@ -1,7 +1,7 @@
 import { IPC } from '@shared/api'
 import { SPEAKER, type AudioSourceId, type ListenStatus, type TranscriptLine } from '@shared/live'
 import { similarity } from '@shared/text'
-import { looksLikeQuestion } from '@shared/question'
+import { latestQuestionRun } from '@shared/question'
 import { getApiKey } from '../secrets'
 import { getSettings } from '../settings'
 import { broadcast } from '../windows'
@@ -169,10 +169,12 @@ export function recentTranscript(maxTurns = 25, maxChars = 10_000): { speaker: s
   return picked.map((t) => ({ speaker: SPEAKER[t.source], text: t.text, at: t.endedAt - base }))
 }
 
-/** The newest turn that sounds like a question (either speaker), else the newest "Them" turn. */
-export function lastQuestionTurn(): FinalTurn | undefined {
-  const newestFirst = [...history].reverse()
-  return newestFirst.find((t) => looksLikeQuestion(t.text)) ?? newestFirst.find((t) => t.source === 'system')
+/**
+ * The latest question as spoken, joined across the pauses it was read out in
+ * (either speaker); falls back to the newest "Them" turn.
+ */
+export function latestQuestion(): string | undefined {
+  return latestQuestionRun(history) ?? [...history].reverse().find((t) => t.source === 'system')?.text
 }
 
 /** Epoch ms when the newest turn ended, or 0. */

@@ -140,7 +140,7 @@ Transcripts come from speech-to-text: expect missing punctuation, filler words a
 - Imperatives count: "walk me through…", "implement…", "tell me about…", "explain…".
 - needsAnswer is false for small talk, acknowledgements ("okay", "great"), call logistics ("can you hear me", "share your screen") and rhetorical questions Them answers themselves.
 - A question spread over several consecutive turns by the same speaker is one question: merge it.
-- If the latest turn only continues a question already answered (listed below), needsAnswer is false.
+- If the latest turn repeats or only continues a question already answered (listed below), even when asked by the other speaker or in different words: needsAnswer = false and alreadyAnswered = true. Otherwise alreadyAnswered = false.
 - "question" must be one clear, self-contained question in your own words, or "" if there is none: resolve "it"/"that" from context, correct misheard technical terms ("binary error" → "binary array", "flip the atmost k zeros" → "flip at most k zeros"), and drop filler ("so", "now", "um").`
 
 export const LIVE_KINDS = ['coding', 'conceptual', 'system_design', 'behavioral', 'clarification', 'other'] as const
@@ -164,6 +164,7 @@ Then the detail, depending on the kind of question:
 - clarification → only the Key points.
 
 RULES
+- The QUESTION is transcribed speech: it may be split into fragments, repeated or misheard ("integer noun" = integer array). First reconstruct the whole intended question from the QUESTION, the transcript and the screenshot (if any), then answer all of it. If it is a coding problem, solve the complete problem, not just the last sentence.
 - The transcript is noisy speech-to-text: silently fix misheard technical terms.
 - Prefer correct over clever; if unsure of a fact, say so instead of inventing specifics.
 - At most 250 words, not counting code.

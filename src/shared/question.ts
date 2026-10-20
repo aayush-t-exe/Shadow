@@ -33,3 +33,42 @@ export function questionScore(text: string): number {
 }
 
 export const looksLikeQuestion = (text: string) => questionScore(text) >= 1
+
+export interface SpokenTurn {
+  source: 'mic' | 'system'
+  text: string
+  endedAt: number
+}
+
+// People read problems out in several breaths; Deepgram ends a turn at each pause.
+const MAX_RUN_TURNS = 8
+const MAX_RUN_GAP_MS = 20_000
+
+/**
+ * The latest question as it was actually spoken: finds the newest question-like turn and
+ * joins it with the speaker's directly preceding turns (same speaker, no long silence).
+ * Example: "Given an array of unique elements…" + "return all subsets" + "no duplicates".
+ */
+export function latestQuestionRun(turns: readonly SpokenTurn[]): string | undefined {
+  let end = -1
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (looksLikeQuestion(turns[i].text)) {
+      end = i
+      break
+    }
+  }
+  if (end === -1) return undefined
+  let start = end
+  while (
+    start > 0 &&
+    end - start + 1 < MAX_RUN_TURNS &&
+    turns[start - 1].source === turns[end].source &&
+    turns[start].endedAt - turns[start - 1].endedAt <= MAX_RUN_GAP_MS
+  ) {
+    start--
+  }
+  return turns
+    .slice(start, end + 1)
+    .map((t) => t.text.trim())
+    .join(' ')
+}

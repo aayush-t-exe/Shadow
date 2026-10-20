@@ -18,7 +18,7 @@ import {
   solveUserText
 } from './ai/prompts'
 import { broadcast } from './windows'
-import { clearTranscript, getListenStatus, lastQuestionTurn, lastTurnEndedAt, recentTranscript } from './live/listen'
+import { clearTranscript, getListenStatus, latestQuestion, lastTurnEndedAt, recentTranscript } from './live/listen'
 
 // The session holds everything about the current problem: queued screenshots,
 // the conversation so far, and the answer that is streaming right now.
@@ -105,7 +105,7 @@ function lastCodeBlockIsClosed(markdown: string): boolean {
  */
 export function smartAnswer(): Promise<void> {
   const heardRecently = getListenStatus().state === 'on' || Date.now() - lastTurnEndedAt() < RECENT_SPEECH_MS
-  if (heardRecently && screenshots.length === 0 && lastQuestionTurn()) {
+  if (heardRecently && screenshots.length === 0 && latestQuestion()) {
     return ask({ mode: 'live', withScreen: true })
   }
   const mode: AskMode = history.length > 0 && screenshots.length > 0 ? 'debug' : 'solve'
@@ -141,7 +141,7 @@ export async function ask(req: AskRequest): Promise<void> {
   let mode = req.mode
   if (mode === 'debug' && history.length === 0) mode = 'solve'
   if (mode === 'followup' && !req.text?.trim()) return
-  const liveQuestion = mode === 'live' ? (req.text?.trim() || lastQuestionTurn()?.text) : undefined
+  const liveQuestion = mode === 'live' ? (req.text?.trim() || latestQuestion()) : undefined
   if (mode === 'live' && !liveQuestion) {
     broadcast(IPC.toast, 'No question heard yet')
     return

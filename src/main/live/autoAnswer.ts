@@ -8,6 +8,9 @@ import { getModel } from '../ai/providers'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
 import { ask, onSessionReset } from '../session'
 import { SPEAKER } from '@shared/live'
+import { IPC } from '@shared/api'
+import { hotkeyFor, keycaps } from '@shared/hotkeys'
+import { broadcast } from '../windows'
 import { onTurnSignal, recentTranscript, type FinalTurn } from './listen'
 
 // Decides when a finished "Them" turn deserves an automatic answer:
@@ -26,9 +29,22 @@ const REMEMBERED_QUESTIONS = 10
 
 const triageSchema = z.object({
   needsAnswer: z.boolean(),
+  /** The latest turn repeats a question that was already answered. */
+  alreadyAnswered: z.boolean(),
   question: z.string(),
   confidence: z.number().min(0).max(1)
 })
+
+const answerAgainHint = `Press ${keycaps(hotkeyFor('solve').accelerator).join('+')} to answer it again.`
+const REPEAT_TOAST_EVERY_MS = 10_000
+let lastRepeatToastAt = 0
+
+/** Says "heard you" when a repeated question is skipped, once per stretch of fragments. */
+function toastRepeat() {
+  if (Date.now() - lastRepeatToastAt < REPEAT_TOAST_EVERY_MS) return
+  lastRepeatToastAt = Date.now()
+  broadcast(IPC.toast, `Heard that question again; it's answered above. ${answerAgainHint}`)
+}
 
 let lastMicStart = 0
 let lastAutoAnswerAt = 0
@@ -80,13 +96,21 @@ async function consider(turn: FinalTurn) {
   if (!app.isPackaged) console.log('[auto-answer]', JSON.stringify({ heard: turn.text, verdict }))
   let question: string
   if (verdict) {
+    if (verdict.alreadyAnswered) {
+      // Let the user know it was heard, not ignored.
+      toastRepeat()
+      return
+    }
     if (!verdict.needsAnswer || verdict.confidence < MIN_CONFIDENCE) return
     question = verdict.question.trim() || turn.text
   } else {
     if (questionScore(turn.text) < 2) return
     question = turn.text
   }
-  if (answered.some((q) => similarity(q, question) >= DUPLICATE_SIMILARITY)) return
+  if (answered.some((q) => similarity(q, question) >= DUPLICATE_SIMILARITY)) {
+    toastRepeat()
+    return
+  }
 
   answered = [...answered, question].slice(-REMEMBERED_QUESTIONS)
   lastAutoAnswerAt = Date.now()
