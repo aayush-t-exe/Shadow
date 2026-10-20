@@ -11,7 +11,8 @@ export const LANGUAGE_TAG: Record<CodeLanguage, string> = { python: 'python', ja
 const LANGUAGE_RULES: Record<CodeLanguage, string> = {
   python: `PYTHON RULES
 - Python 3.11+, standard library only (collections, heapq, bisect, itertools, functools, math).
-- LeetCode style: \`class Solution:\` with the given method and type hints (\`List[int]\` from typing if the stub uses it).
+- LeetCode style: \`class Solution:\` with the given method, copied exactly as the stub writes it. Add type hints only if the stub has them.
+- If the stub has no type hints, uses \`:type x: ...\` docstrings, or the editor's language selector says "Python" rather than "Python3", it is Python 2: no type hints, no f-strings, and write code that runs on both Python 2 and 3.
 - Stdin style: read with \`sys.stdin.readline\` or \`sys.stdin.buffer.read().split()\`; wrap in \`def main():\` and call it.
 - Avoid deep recursion; if depth may exceed ~1000, use an iterative approach or raise the limit with a note.
 - Use \`//\` for integer division. Python ints don't overflow, so don't add overflow handling.`,

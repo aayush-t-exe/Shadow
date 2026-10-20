@@ -447,4 +447,7 @@
 .answer code {
   font-family: var(--sh-mono);
   font-size: 12px;
+  /* Cascadia Code draws -> as → and >= as ≥; students must see the exact characters they'll type. */
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
 }

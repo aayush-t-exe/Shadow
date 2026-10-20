@@ -12,6 +12,12 @@ describe('prompts', () => {
     expect(p).toContain('at most 3 bullets')
   })
 
+  it('tells the model to copy the stub and to detect LeetCode Python 2', () => {
+    const p = solvePrompt({ language: 'python', verbosity: 'concise' })
+    expect(p).toContain('Add type hints only if the stub has them')
+    expect(p).toContain('it is Python 2')
+  })
+
   it('builds a Java solve prompt with Java rules', () => {
     const p = solvePrompt({ language: 'java', verbosity: 'detailed' })
     expect(p).toContain('Solve it in Java 17')
