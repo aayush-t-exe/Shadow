@@ -13,6 +13,8 @@ const MOVE_STEP = 80
 
 let overlay: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
+let quitting = false
+app.on('before-quit', () => (quitting = true))
 
 const preloadPath = () => join(import.meta.dirname, '../preload/index.cjs')
 
@@ -71,6 +73,13 @@ export function createOverlay(): BrowserWindow {
   overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   overlay.setIgnoreMouseEvents(true, { forward: true })
   overlay.once('ready-to-show', () => overlay?.showInactive())
+  // Closing the overlay (Ctrl+W, Alt+F4 while it has focus) only hides it; quitting from
+  // the tray is the one way to exit.
+  overlay.on('close', (e) => {
+    if (quitting) return
+    e.preventDefault()
+    hideOverlay()
+  })
   overlay.on('closed', () => {
     clearInterval(cursorTimer)
     overlay = null

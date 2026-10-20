@@ -1,4 +1,4 @@
-import { app, globalShortcut } from 'electron'
+import { app, globalShortcut, Menu } from 'electron'
 import { IPC } from '@shared/api'
 import { installPermissions } from './live/capture'
 import { startAutoAnswer } from './live/autoAnswer'
@@ -14,6 +14,10 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     app.setAppUserModelId('app.shadow.copilot')
+    // Electron's default menu carries hidden shortcuts (Ctrl+W closes the window, Ctrl+R
+    // reloads it) that fire whenever Shadow has focus. Shadow has no menu, so drop it.
+    // Copy/paste in text boxes still works without it on Windows.
+    Menu.setApplicationMenu(null)
 
     installPermissions()
 
