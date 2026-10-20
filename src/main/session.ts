@@ -50,6 +50,7 @@ export function cancelAnswer(): void {
 
 export function resetSession(): void {
   cancelAnswer()
+  copyWhenCodeCompletes = false
   screenshots = []
   history = []
   currentAnswer = ''
@@ -57,7 +58,21 @@ export function resetSession(): void {
   broadcast(IPC.sessionReset)
 }
 
+// Set when the user asks to copy while the code block is still streaming in.
+let copyWhenCodeCompletes = false
+
 export function copyLastCode(): void {
+  if (inflight && !lastCodeBlockIsClosed(currentAnswer)) {
+    // Copying now would grab half a solution; wait for the block (or the answer) to finish.
+    copyWhenCodeCompletes = true
+    broadcast(IPC.toast, 'Code is still being written. It will be copied when it finishes.')
+    return
+  }
+  copyNow()
+}
+
+function copyNow(): void {
+  copyWhenCodeCompletes = false
   const code = lastCodeBlock(currentAnswer)
   if (code === null) {
     broadcast(IPC.toast, 'No code to copy yet')
@@ -65,6 +80,12 @@ export function copyLastCode(): void {
   }
   clipboard.writeText(code)
   broadcast(IPC.toast, 'Code copied')
+}
+
+/** True once the answer contains at least one code block and the last one has its closing fence. */
+function lastCodeBlockIsClosed(markdown: string): boolean {
+  const fences = markdown.match(/^[ \t]*(```|~~~)/gm)?.length ?? 0
+  return fences > 0 && fences % 2 === 0
 }
 
 /** Ctrl+Shift+Enter: solve the queue, or debug if a solution already exists and new shots are queued. */
@@ -93,6 +114,7 @@ async function transcribeScreenshots(shots: Screenshot[], settings: Settings, si
 
 export async function ask(req: AskRequest): Promise<void> {
   cancelAnswer() // one answer at a time
+  copyWhenCodeCompletes = false
   const settings = getSettings()
   const promptOptions = { language: settings.language, verbosity: settings.verbosity }
 
@@ -176,6 +198,7 @@ export async function ask(req: AskRequest): Promise<void> {
         firstTokenMs ??= Math.round(performance.now() - startedAt)
         currentAnswer += part.text
         pending += part.text
+        if (copyWhenCodeCompletes && lastCodeBlockIsClosed(currentAnswer)) copyNow()
       } else if (part.type === 'error') {
         throw part.error
       }
@@ -201,5 +224,7 @@ export async function ask(req: AskRequest): Promise<void> {
   } finally {
     clearInterval(timer)
     if (inflight?.id === id) inflight = null
+    // The answer ended before the block closed (stopped, error, or truncated): copy what exists.
+    if (copyWhenCodeCompletes) copyNow()
   }
 }

@@ -13,9 +13,12 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId('app.shadow.copilot')
 
-    // Deny every browser permission (camera, notifications, geolocation…) by default.
-    // Audio capture gets its own narrow allowance when live listening is added.
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
+    // Deny every browser permission (camera, notifications, geolocation…) except writing to
+    // the clipboard (the code blocks' copy buttons). Audio capture gets its own narrow
+    // allowance when live listening is added.
+    const allowed = new Set(['clipboard-sanitized-write'])
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed.has(permission)))
+    session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission))
 
     registerIpc()
     const overlay = createOverlay()
