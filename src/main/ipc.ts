@@ -5,6 +5,7 @@ import { IPC } from '@shared/api'
 import { keyUrlFor } from '@shared/providers'
 import type { KeyTestResult, ModelChoice } from '@shared/types'
 import { isTrustedUrl } from './trust'
+import { checkDeepgramCredit } from './live/credit'
 import { getListenStatus, pushAudio, setCaptureWarning, startListening, stopListening } from './live/listen'
 import { getSettings, updateSettings } from './settings'
 import { deleteApiKey, keyStatus, setApiKey } from './secrets'
@@ -88,6 +89,7 @@ export function registerIpc() {
   on(IPC.setInteractiveRegions, (rects: unknown) => setInteractiveRegions(rectList.parse(rects)))
   handle(IPC.startListening, () => startListening())
   handle(IPC.getListenStatus, () => getListenStatus())
+  handle(IPC.checkSpeechCredit, () => checkDeepgramCredit())
   on(IPC.stopListening, () => stopListening())
   on(IPC.pushAudio, (source: unknown, pcm: unknown) => {
     // 80 ms of 16 kHz PCM16 is 2560 bytes; anything far bigger isn't from our worklet.

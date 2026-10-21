@@ -5,6 +5,7 @@ import type {
   AnswerStartEvent,
   AnswerStatusEvent,
   AskRequest,
+  CreditResult,
   KeyStatus,
   KeyTestResult,
   ModelChoice,
@@ -32,6 +33,7 @@ export const IPC = {
   listModels: 'models:list',
   startListening: 'listen:start',
   getListenStatus: 'listen:get-status',
+  checkSpeechCredit: 'listen:check-credit',
   // renderer → main (fire and forget)
   cancel: 'session:cancel',
   reset: 'session:reset',
@@ -82,6 +84,8 @@ export interface ShadowAPI {
   startListening(): Promise<void>
   stopListening(): void
   getListenStatus(): Promise<ListenStatus>
+  /** Remaining Deepgram credit and roughly how many hours of listening it covers. */
+  checkSpeechCredit(): Promise<CreditResult>
   /** One 80 ms frame of 16 kHz mono PCM16. */
   pushAudio(source: AudioSourceId, pcm: ArrayBuffer): void
   reportCaptureWarning(warning: string | null): void

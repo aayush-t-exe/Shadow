@@ -4,7 +4,10 @@ import { z } from 'zod'
 import { looksLikeQuestion, questionScore } from '@shared/question'
 import { similarity } from '@shared/text'
 import { getSettings } from '../settings'
-import { getModel } from '../ai/providers'
+import { getModel, speedOptions } from '../ai/providers'
+import { getApiKey } from '../secrets'
+import { providerInfo } from '@shared/providers'
+import type { ModelChoice } from '@shared/types'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
 import { ask, onSessionReset, whenIdle } from '../session'
 import { SPEAKER } from '@shared/live'
@@ -54,11 +57,21 @@ let answered: string[] = []
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** The classifier runs on the backup model when there is one: it's usually the fast one, and it keeps the main model's free quota for answers. */
+async function classifierModel(): Promise<ModelChoice> {
+  const settings = getSettings()
+  const backup = settings.backupModel
+  if (backup?.modelId && (!providerInfo(backup.provider).needsKey || (await getApiKey(backup.provider)))) return backup
+  return settings.answerModel
+}
+
 async function classify(turn: FinalTurn): Promise<z.infer<typeof triageSchema> | null> {
   const settings = getSettings()
+  const choice = await classifierModel()
   try {
     const { output } = await generateText({
-      model: await getModel(settings.answerModel, settings),
+      model: await getModel(choice, settings),
+      providerOptions: speedOptions(choice, 'classify'),
       instructions: TRIAGE_PROMPT,
       prompt: `RECENT TRANSCRIPT (oldest → newest):
 ${formatTranscript(recentTranscript(8, 4000))}

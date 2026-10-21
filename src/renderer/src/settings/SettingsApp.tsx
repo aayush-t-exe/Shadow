@@ -5,7 +5,7 @@ import '../overlay/overlay.css'
 import './settings.css'
 import { HOTKEYS } from '@shared/hotkeys'
 import { PROVIDERS, SPEECH_PROVIDERS, providerInfo } from '@shared/providers'
-import type { KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
+import type { CreditResult, KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 
@@ -183,6 +183,33 @@ function KeyRow({ id: provider, label, hasKeyPage, status, onStatus }: KeyRowPro
 
 // ---------- page ----------
 
+/** "Check credit": Deepgram balance and roughly how much listening it still buys. */
+function CreditRow() {
+  const [checking, setChecking] = useState(false)
+  const [result, setResult] = useState<CreditResult | null>(null)
+  const check = async () => {
+    setChecking(true)
+    setResult(await window.shadow.checkSpeechCredit())
+    setChecking(false)
+  }
+  return (
+    <div className="row">
+      <span className="label">Credit left</span>
+      <button className="sbtn" onClick={check} disabled={checking}>
+        {checking ? <LoaderCircle className="animate-spin" /> : <RefreshCw />} Check credit
+      </button>
+      {result &&
+        (result.ok ? (
+          <span className="result-ok">
+            ${result.usd.toFixed(2)} left · about {Math.floor(result.hoursOfListening)} hours of listening
+          </span>
+        ) : (
+          <span className="result-bad">{result.message}</span>
+        ))}
+    </div>
+  )
+}
+
 export function SettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [keys, setKeys] = useState<KeyStatus>({})
@@ -207,6 +234,27 @@ export function SettingsApp() {
         <h2>Answer model</h2>
         <p className="hint">Writes the solutions. Gemini's free tier is the recommended start.</p>
         <ModelPicker value={settings.answerModel} onChange={(answerModel) => save({ answerModel })} />
+      </section>
+
+      <section className="card">
+        <h2>Backup model</h2>
+        <p className="hint">
+          Free tiers are sometimes slow or busy. If the answer model hasn't started replying within 5 seconds, Shadow asks this
+          model too and shows whichever answers first. It also decides which spoken sentences are questions, which keeps your
+          answer model's free quota for answers. Groq's free tier is very fast and a good choice.
+        </p>
+        <div className="row">
+          <span className="label">Use a backup</span>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={!!settings.backupModel}
+              onChange={(e) => save({ backupModel: e.target.checked ? providerInfo('groq').defaultModel : null })}
+            />
+            Race a second model when the first one is slow
+          </label>
+        </div>
+        {settings.backupModel && <ModelPicker value={settings.backupModel} onChange={(backupModel) => save({ backupModel })} />}
       </section>
 
       {!settings.answerModel.vision && (
@@ -234,6 +282,7 @@ export function SettingsApp() {
           Transcribes your microphone (“You”) and your PC's sound (“Them”) with Deepgram. Use headphones on calls so the other
           person's voice doesn't leak into your mic.
         </p>
+        {keys.deepgram && <CreditRow />}
         <div className="row">
           <span className="label">Language</span>
           <span className="segmented">

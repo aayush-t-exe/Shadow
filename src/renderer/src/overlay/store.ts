@@ -79,7 +79,9 @@ export function connectToMain() {
       ]
     }))
   )
-  api.onAnswerStatus(({ id, status }) => updateTurn(id, () => ({ status })))
+  api.onAnswerStatus(({ id, status, provider, modelId }) =>
+    updateTurn(id, () => (provider && modelId ? { status, provider, modelId } : { status }))
+  )
   api.onAnswerChunk(({ id, delta }) => updateTurn(id, (t) => ({ answer: t.answer + delta, status: null })))
   api.onAnswerDone(({ id, aborted, firstTokenMs, totalMs }) =>
     updateTurn(id, () => ({ streaming: false, status: null, aborted, firstTokenMs, totalMs }))

@@ -1,4 +1,7 @@
+import { app } from 'electron'
 import type { LanguageModel } from 'ai'
+import { IPC } from '@shared/api'
+import { broadcast } from '../windows'
 import { createGoogle } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createOpenAI } from '@ai-sdk/openai'
@@ -18,26 +21,70 @@ async function requireKey(provider: ProviderId): Promise<string | undefined> {
   return key
 }
 
+// Free tiers cap requests per minute. When a provider answers 429 the AI SDK quietly waits
+// and retries, which feels like Shadow "hanging". Tell the user, at most once a minute.
+const RATE_LIMIT_TOAST_EVERY_MS = 60_000
+let lastRateLimitToast = 0
+
+/**
+ * fetch wrapper for every model request: logs status and time-to-response in development
+ * (never headers or bodies, which hold keys and screenshots) and explains rate limits.
+ */
+function instrumentedFetch(provider: ProviderId): typeof fetch {
+  return async (input, init) => {
+    const started = performance.now()
+    const response = await fetch(input, init)
+    const ms = Math.round(performance.now() - started)
+    if (!app.isPackaged) {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      console.log(`[ai] ${provider} ${url.pathname.split('/').slice(-1)[0]} → ${response.status} in ${ms} ms`)
+    }
+    if (response.status === 429 && Date.now() - lastRateLimitToast > RATE_LIMIT_TOAST_EVERY_MS) {
+      lastRateLimitToast = Date.now()
+      broadcast(
+        IPC.toast,
+        `${providerInfo(provider).label}'s free per-minute limit was reached, so Shadow is waiting and retrying. Answers will be slower for about a minute.`
+      )
+    }
+    return response
+  }
+}
+
+export type Purpose = 'solve' | 'live' | 'classify'
+
+/**
+ * Per-request tuning for speed. Gemini 3.x models "think" before answering, which can add
+ * seconds; live answers and the classifier need speed far more than deep reasoning.
+ * Only Gemini 3.x understands `thinkingLevel`, so nothing is sent to other models.
+ */
+export function speedOptions(choice: ModelChoice, purpose: Purpose) {
+  if (choice.provider === 'gemini' && /^gemini-3/.test(choice.modelId)) {
+    return { google: { thinkingConfig: { thinkingLevel: purpose === 'solve' ? 'low' : 'minimal' } } } as const
+  }
+  return undefined
+}
+
 /** Turns a provider + model id from Settings into an AI SDK model. Keys are read here and never leave main. */
 export async function getModel(choice: ModelChoice, settings: Settings): Promise<LanguageModel> {
   if (!choice.modelId) throw new ShadowError('UNKNOWN', `Pick a ${providerInfo(choice.provider).label} model in Settings.`)
   const apiKey = await requireKey(choice.provider)
+  const fetch = instrumentedFetch(choice.provider)
   switch (choice.provider) {
     case 'gemini':
-      return createGoogle({ apiKey })(choice.modelId)
+      return createGoogle({ apiKey, fetch })(choice.modelId)
     case 'groq':
-      return createGroq({ apiKey })(choice.modelId)
+      return createGroq({ apiKey, fetch })(choice.modelId)
     case 'openai':
-      return createOpenAI({ apiKey })(choice.modelId)
+      return createOpenAI({ apiKey, fetch })(choice.modelId)
     case 'anthropic':
-      return createAnthropic({ apiKey })(choice.modelId)
+      return createAnthropic({ apiKey, fetch })(choice.modelId)
     case 'openrouter':
-      return createOpenRouter({ apiKey, headers: { 'X-Title': 'Shadow' } }).chat(choice.modelId)
+      return createOpenRouter({ apiKey, fetch, headers: { 'X-Title': 'Shadow' } }).chat(choice.modelId)
     case 'ollama':
-      return createOllama({ baseURL: `${settings.ollamaBaseURL.replace(/\/$/, '')}/api` })(choice.modelId)
+      return createOllama({ baseURL: `${settings.ollamaBaseURL.replace(/\/$/, '')}/api`, fetch })(choice.modelId)
     case 'custom':
       if (!settings.customBaseURL) throw new ShadowError('UNKNOWN', 'Set the custom provider base URL in Settings.')
-      return createOpenAICompatible({ name: 'custom', baseURL: settings.customBaseURL, apiKey })(choice.modelId)
+      return createOpenAICompatible({ name: 'custom', baseURL: settings.customBaseURL, apiKey, fetch })(choice.modelId)
   }
 }
 

@@ -28,6 +28,7 @@ const api: ShadowAPI = {
   startListening: () => ipcRenderer.invoke(IPC.startListening),
   stopListening: () => ipcRenderer.send(IPC.stopListening),
   getListenStatus: () => ipcRenderer.invoke(IPC.getListenStatus),
+  checkSpeechCredit: () => ipcRenderer.invoke(IPC.checkSpeechCredit),
   pushAudio: (source, pcm) => ipcRenderer.send(IPC.pushAudio, source, new Uint8Array(pcm)),
   reportCaptureWarning: (warning) => ipcRenderer.send(IPC.reportCaptureWarning, warning),
 

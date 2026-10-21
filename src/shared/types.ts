@@ -19,6 +19,8 @@ export interface Settings {
   answerModel: ModelChoice
   /** Reads screenshots into text when `answerModel` cannot see images. */
   visionModel: ModelChoice
+  /** Raced against `answerModel` when it's slow or failing; also runs the question classifier. */
+  backupModel: ModelChoice | null
   ollamaBaseURL: string
   customBaseURL: string
   /** Speech-to-text language: English only, or multilingual (handles Hinglish). */
@@ -76,7 +78,10 @@ export interface AnswerStartEvent {
 /** Progress text shown before the first token, e.g. "Reading screenshots…". */
 export interface AnswerStatusEvent {
   id: string
-  status: string
+  status: string | null
+  /** Set when the backup model won the race, so the header shows who actually answered. */
+  provider?: ProviderId
+  modelId?: string
 }
 export interface AnswerChunkEvent {
   id: string
@@ -97,3 +102,4 @@ export interface AnswerErrorEvent {
 
 export type ModelListResult = { ok: true; models: string[] } | { ok: false; message: string }
 export type KeyTestResult = { ok: true; ms: number } | { ok: false; message: string }
+export type CreditResult = { ok: true; usd: number; hoursOfListening: number } | { ok: false; message: string }

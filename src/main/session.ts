@@ -2,10 +2,13 @@ import { clipboard } from 'electron'
 import { generateText, streamText, type ModelMessage, type UserContent } from 'ai'
 import { IPC } from '@shared/api'
 import { lastCodeBlock } from '@shared/markdown'
-import type { AskMode, AskRequest, ScreenshotInfo, Settings } from '@shared/types'
+import type { AskMode, AskRequest, ModelChoice, ScreenshotInfo, Settings } from '@shared/types'
+import { providerInfo } from '@shared/providers'
 import { getSettings } from './settings'
 import { captureScreen, type Screenshot } from './screenshots'
-import { getModel } from './ai/providers'
+import { getModel, speedOptions } from './ai/providers'
+import { raceText } from './ai/race'
+import { getApiKey } from './secrets'
 import { ShadowError, toUserError } from './ai/errors'
 import {
   EXTRACT_PROMPT,
@@ -26,6 +29,8 @@ import { clearTranscript, getListenStatus, latestQuestion, lastTurnEndedAt, rece
 const MAX_SCREENSHOTS = 4
 // Ctrl+Shift+Enter answers the conversation (not just the screen) if someone spoke this recently.
 const RECENT_SPEECH_MS = 2 * 60_000
+// No text from the main model after this long: race the backup model too.
+const HEDGE_AFTER_MS = 5000
 // Main batches tokens for this long before sending them to the UI (fewer IPC messages, smoother rendering).
 const FLUSH_MS = 30
 
@@ -124,6 +129,15 @@ export function whenIdle(): Promise<void> {
 const imageParts = (shots: Screenshot[]) =>
   shots.map((s) => ({ type: 'file' as const, mediaType: 'image/png', data: s.png }))
 
+/** The backup model, if one is set, has a key, and can handle this request. */
+async function usableBackup(settings: Settings, sendsImages: boolean): Promise<ModelChoice | undefined> {
+  const backup = settings.backupModel
+  if (!backup?.modelId || (sendsImages && !backup.vision)) return undefined
+  if (backup.provider === settings.answerModel.provider && backup.modelId === settings.answerModel.modelId) return undefined
+  if (providerInfo(backup.provider).needsKey && !(await getApiKey(backup.provider))) return undefined
+  return backup
+}
+
 /** For answer models without vision: have the vision model transcribe the screenshots first. */
 async function transcribeScreenshots(shots: Screenshot[], settings: Settings, signal: AbortSignal): Promise<string> {
   if (!settings.visionModel.vision) {
@@ -221,24 +235,42 @@ export async function ask(req: AskRequest): Promise<void> {
     }
     broadcast(IPC.answerStatus, { id, status: shots.length > 0 ? 'Reading screen…' : 'Thinking…' })
 
-    const result = streamText({
-      model: await getModel(model, settings),
-      instructions,
-      messages: [...context, { role: 'user', content }],
-      maxOutputTokens: 8192,
-      maxRetries: 2,
-      abortSignal: controller.signal,
-      timeout: { chunkMs: 60_000 }
-    })
-    for await (const part of result.stream) {
-      if (part.type === 'text-delta') {
-        firstTokenMs ??= Math.round(performance.now() - startedAt)
-        currentAnswer += part.text
-        pending += part.text
-        if (copyWhenCodeCompletes && lastCodeBlockIsClosed(currentAnswer)) copyNow()
-      } else if (part.type === 'error') {
-        throw part.error
+    const messages: ModelMessage[] = [...context, { role: 'user', content }]
+    const purpose = mode === 'live' ? 'live' : 'solve'
+    // The backup only joins if it can handle this request (it must see images if we're sending them).
+    const sendsImages = content.some((part) => typeof part !== 'string' && part.type === 'file')
+    const backup = await usableBackup(settings, sendsImages)
+
+    const stream = raceText({
+      primary: model,
+      backup,
+      hedgeAfterMs: HEDGE_AFTER_MS,
+      signal: controller.signal,
+      start: async (choice, signal) =>
+        streamText({
+          model: await getModel(choice, settings),
+          instructions,
+          messages,
+          maxOutputTokens: 8192,
+          maxRetries: 2,
+          abortSignal: signal,
+          timeout: { chunkMs: 60_000 },
+          providerOptions: speedOptions(choice, purpose)
+        }).stream,
+      onHedge: (b) =>
+        broadcast(IPC.answerStatus, {
+          id,
+          status: `${providerInfo(model.provider).label} is slow right now, also asking ${providerInfo(b.provider).label}…`
+        }),
+      onWinner: (winner) => {
+        if (winner !== model) broadcast(IPC.answerStatus, { id, status: null, provider: winner.provider, modelId: winner.modelId })
       }
+    })
+    for await (const text of stream) {
+      firstTokenMs ??= Math.round(performance.now() - startedAt)
+      currentAnswer += text
+      pending += text
+      if (copyWhenCodeCompletes && lastCodeBlockIsClosed(currentAnswer)) copyNow()
     }
     flush()
 
