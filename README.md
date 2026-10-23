@@ -6,8 +6,9 @@
 
 <p align="center">
   <b>One hotkey from stuck to understood.</b><br>
-  A free, open-source AI copilot for Windows. It reads the coding problem on your screen,<br>
-  listens to the question being asked, and explains the answer in Python or Java.
+  A free, open-source study companion for Windows, built as a college project.<br>
+  It explains the coding problem on your screen step by step, in Python or Java,<br>
+  and can transcribe a lecture or a practice video to explain the answer.
 </p>
 
 <p align="center">
@@ -33,9 +34,9 @@
 
 ## 💡 Why Shadow
 
-I'm a computer science student in India. Tools like Cluely and Interview Coder can look at your screen and explain what's on it, but at **$20 to $299 a month** they cost more than most students spend in a month.
+I'm a computer science student in India. When I practise coding problems, the hard part is usually understanding *why* a solution works, not finding one. AI tools that can read your screen and explain it exist, but at **$20 to $299 a month** they cost more than most students spend in a month.
 
-Shadow does the core of the same job for free. You bring a free API key (Gemini's free tier is plenty for studying), and everything else runs on your own PC. I built it as my college project and kept it open source so anyone can use it, read it, or learn from it.
+Shadow does that job for free. You bring a free API key (Gemini's free tier is plenty for studying), and everything else runs on your own PC. I built it as my college project and kept it open source so anyone can use it, read it, or learn from it.
 
 <table>
   <tr>
@@ -62,9 +63,9 @@ Open any coding problem and press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</k
 
 <p align="center"><img src="docs/images/hero.png" width="860" alt="Shadow's answer panel over a practice problem, showing the approach and a Python solution"></p>
 
-### 🎙️ Listen and answer as questions come up
+### 🎙️ Transcribe a lecture or a practice video
 
-Press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> during a lecture, a study call or a video. Shadow transcribes both sides of the conversation, notices when a question has been asked, and answers it in a couple of sentences you can take in at a glance, with code when it's a coding question.
+Press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> while a lecture, a study call or a mock-interview practice video plays. Shadow transcribes it, picks out the questions that are asked, and explains each answer in a couple of sentences, with code when it's a coding question.
 
 <p align="center"><img src="docs/images/listen.png" width="860" alt="Live transcript of a study call next to Shadow's short answer about processes and threads"></p>
 
@@ -85,7 +86,7 @@ Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers 
 1. **[Download `Shadow-Setup.exe`](https://github.com/aayush-t-exe/shadow/releases/latest/download/Shadow-Setup.exe)** and run it. Windows may say *"Windows protected your PC"*, because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**.
 2. Shadow appears as a slim bar at the top of your screen. Get a free key at **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**, click **⚙** in Shadow's bar, and paste it under **API keys**.
 3. Open any coding problem and press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>.
-4. *Optional:* to use Listen, add a free **[Deepgram](https://console.deepgram.com/signup)** key too ($200 of free credit, no card).
+4. *Optional:* to transcribe lectures and videos (Listen), add a free **[Deepgram](https://console.deepgram.com/signup)** key too ($200 of free credit, no card).
 
 <p align="center"><img src="docs/images/welcome.png" width="860" alt="Shadow's first-run welcome card with three steps"></p>
 
@@ -93,9 +94,9 @@ Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers 
 
 | Do this | Press |
 |---|---|
-| Solve the problem on screen (or answer the last question while listening) | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd> |
+| Explain the problem on screen (or the last question while transcribing) | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd> |
 | Take a screenshot (up to 4, for long problems) | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>S</kbd> |
-| Start / stop listening | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> |
+| Start / stop transcribing | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> |
 | Debug with new screenshots | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>D</kbd> |
 | Copy the code | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> |
 | Show / hide Shadow | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Space</kbd> |
@@ -121,14 +122,14 @@ Pick a provider in Settings, click **Fetch models** to see what your key can use
 
 - **Your keys stay on your PC**, encrypted with Windows' built-in protection. Shadow never shows them again after you save them.
 - **Screenshots and audio go only to the provider you picked.** Shadow has no server of its own and collects nothing.
-- **Shadow is visible on purpose.** It doesn't hide from screen sharing, recording or proctoring software. It's a study tool, not a way to get help without others knowing.
+- **Shadow is always visible.** It doesn't hide from screen sharing or recording. It's a study tool for practising on your own.
 
 ## 🧩 How it's built
 
 Electron, React and TypeScript, with the Vercel AI SDK talking to seven providers and Deepgram for live transcription. Every AI call runs in Electron's background process, so the interface never sees your keys.
 
-- **[How Shadow works](docs/ARCHITECTURE.md)**: the design, the security model and the live-listening pipeline
-- **[Research notes](research/)**: how Cluely and Interview Coder work, 11 open-source alternatives compared, and the reasoning behind each design decision
+- **[How Shadow works](docs/ARCHITECTURE.md)**: the design, the security model and the transcription pipeline
+- **[Research notes](research/)**: how existing screen-reading AI tools are built, 11 open-source projects compared, and the reasoning behind each design decision
 
 <details>
 <summary><b>Build from source</b></summary>
@@ -150,7 +151,7 @@ npm run showcase   # re-render the README screenshots
 ## 🗺️ Roadmap
 
 - [x] Solve, debug and follow up from screenshots
-- [x] Live listening with automatic answers
+- [x] Live transcription with short explanations
 - [x] Seven AI providers, including fully local
 - [x] Hindi and Hinglish
 - [ ] Save sessions and export them as notes

@@ -53,7 +53,7 @@ A 2025 security write-up showed that a link inside one commercial overlay's AI a
 
 DPAPI protects keys from other Windows users and from copying the config file to another machine. Like a browser's saved passwords, it doesn't protect against other programs running as the same user.
 
-**Shadow deliberately doesn't hide itself** from screen sharing, recording or proctoring. It's a visible study tool.
+**Shadow deliberately doesn't hide itself** from screen sharing or recording. It's a visible study tool.
 
 ## Solving from screenshots
 
