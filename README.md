@@ -12,16 +12,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aayush-t-exe/shadow/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/aayush-t-exe/shadow?style=flat-square&color=7c3aed"></a>
+  <a href="https://github.com/aayush-t-exe/Shadow/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/aayush-t-exe/Shadow?style=flat-square&color=7c3aed"></a>
   <img alt="Windows 10 | 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==">
   <img alt="Built with Electron" src="https://img.shields.io/badge/Electron-47848F?style=flat-square&logo=electron&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/aayush-t-exe/shadow?style=flat-square&color=22c55e"></a>
-  <a href="https://github.com/aayush-t-exe/shadow/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/aayush-t-exe/shadow?style=flat-square&color=f59e0b"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/aayush-t-exe/Shadow?style=flat-square&color=22c55e"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/aayush-t-exe/shadow/releases/latest/download/Shadow-Setup.exe">
+  <a href="https://github.com/aayush-t-exe/Shadow/releases/latest/download/Shadow-Setup.exe">
     <img src="https://img.shields.io/badge/Download%20for%20Windows-6D5EF5?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==" alt="Download for Windows">
   </a>
   <br>
@@ -83,7 +82,7 @@ Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers 
 
 ## 🚀 Get started in 2 minutes
 
-1. **[Download `Shadow-Setup.exe`](https://github.com/aayush-t-exe/shadow/releases/latest/download/Shadow-Setup.exe)** and run it. Windows may say *"Windows protected your PC"*, because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**.
+1. **[Download `Shadow-Setup.exe`](https://github.com/aayush-t-exe/Shadow/releases/latest/download/Shadow-Setup.exe)** and run it. Windows may say *"Windows protected your PC"*, because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**.
 2. Shadow appears as a slim bar at the top of your screen. Get a free key at **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**, click **⚙** in Shadow's bar, and paste it under **API keys**.
 3. Open any coding problem and press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>.
 4. *Optional:* to transcribe lectures and videos (Listen), add a free **[Deepgram](https://console.deepgram.com/signup)** key too ($200 of free credit, no card).
@@ -137,8 +136,8 @@ Electron, React and TypeScript, with the Vercel AI SDK talking to seven provider
 You need Windows 10 or 11 and [Node.js 22+](https://nodejs.org).
 
 ```bash
-git clone https://github.com/aayush-t-exe/shadow.git
-cd shadow
+git clone https://github.com/aayush-t-exe/Shadow.git
+cd Shadow
 npm install
 npm run dev        # run with hot reload
 npm test           # unit tests
