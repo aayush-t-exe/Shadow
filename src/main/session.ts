@@ -164,6 +164,24 @@ async function transcribeScreenshots(shots: Screenshot[], settings: Settings, si
   return text
 }
 
+/**
+ * What project cards are matched against: the question plus what came just before it,
+ * so "what was the hardest part there?" still finds the project named a moment ago.
+ */
+function cardQuery(question: string): string {
+  const spoken = recentTranscript(3, 1200).map((t) => t.text)
+  const lastAsked = history.findLast((m) => m.role === 'user')
+  const content = lastAsked?.content
+  const typed = (
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((p) => (p.type === 'text' ? p.text : '')).join(' ')
+        : ''
+  ).slice(-600)
+  return [question, ...spoken, typed].join('\n')
+}
+
 export async function ask(req: AskRequest): Promise<void> {
   cancelAnswer() // one answer at a time
   copyWhenCodeCompletes = false
@@ -182,7 +200,7 @@ export async function ask(req: AskRequest): Promise<void> {
   // and the question's wording ("in one line", "tell me about a time") overrides the saved style.
   if (mode === 'live' || mode === 'followup') {
     promptOptions.style = styleFromQuestion(liveQuestion ?? req.text ?? '') ?? settings.answerStyle
-    promptOptions.context = await loadInterviewContext().catch(() => undefined)
+    promptOptions.context = await loadInterviewContext(cardQuery(liveQuestion ?? req.text ?? '')).catch(() => undefined)
   }
   // Solve/debug with an empty queue means "use what's on screen right now".
   if ((mode === 'solve' || mode === 'debug' || req.withScreen) && screenshots.length === 0) await takeScreenshot()

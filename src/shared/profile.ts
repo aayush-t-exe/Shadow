@@ -1,3 +1,4 @@
+import type { ProjectCard } from './knowledge'
 import type { AnswerStyle } from './types'
 
 // Interview profiles are plain markdown files, one per company, so they can be
@@ -25,6 +26,12 @@ export type ProfileSummary = Pick<InterviewProfile, 'id' | 'company' | 'role'>
 export interface InterviewContext {
   resume: string
   profile: InterviewProfile | null
+  /** knowledge/about-me.md: background, how the user works, an honest depth map of every skill. */
+  about?: string
+  /** One line per project (see projectIndex). */
+  projectIndex?: string
+  /** Full cards for the projects this question is about (see pickCards). */
+  cards?: ProjectCard[]
 }
 
 // Prompt budget: a resume is ~1k tokens, a brief ~600. Anything far longer is
@@ -38,7 +45,7 @@ export const ANSWER_STYLES: { id: AnswerStyle; label: string; hint: string }[] =
   { id: 'standard', label: 'Standard', hint: 'Short spoken answer with an example' },
   { id: 'concise', label: 'Concise', hint: 'One or two sentences' },
   { id: 'bullets', label: 'Bullets', hint: 'Three to five short bullet points' },
-  { id: 'star', label: 'STAR', hint: 'Situation, Task, Action, Result from your resume' },
+  { id: 'star', label: 'STAR', hint: 'Situation, Task, Action, Result from your projects' },
   { id: 'detailed', label: 'Detailed', hint: 'Fuller answer with trade-offs' }
 ]
 

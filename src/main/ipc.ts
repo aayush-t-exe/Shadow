@@ -13,6 +13,8 @@ import {
   deleteProfile,
   getResume,
   importResume,
+  knowledgeSummary,
+  openKnowledgeFolder,
   listProfiles,
   openProfilesFolder,
   readProfile,
@@ -116,6 +118,8 @@ export function registerIpc() {
   handle(IPC.saveResume, (text: unknown) => saveResume(z.string().max(50_000).parse(text)))
   handle(IPC.importResume, () => importResume())
   on(IPC.openProfilesFolder, () => openProfilesFolder())
+  handle(IPC.getKnowledgeSummary, () => knowledgeSummary())
+  on(IPC.openKnowledgeFolder, () => openKnowledgeFolder())
 
   on(IPC.cancel, () => cancelAnswer())
   on(IPC.reset, () => resetSession())

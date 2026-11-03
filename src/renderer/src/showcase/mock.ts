@@ -56,6 +56,8 @@ const mock: ShadowAPI = {
   getResume: async () => '',
   saveResume: async () => {},
   importResume: async () => null,
+  getKnowledgeSummary: async () => ({ hasAbout: true, projects: ['Shadow', 'Zen-Z'] }),
+  openKnowledgeFolder: noop,
   onAnswerStart: listen,
   onAnswerStatus: listen,
   onAnswerChunk: listen,

@@ -105,6 +105,12 @@ export interface AnswerErrorEvent {
 
 export type ModelListResult = { ok: true; models: string[] } | { ok: false; message: string }
 export type KeyTestResult = { ok: true; ms: number } | { ok: false; message: string }
-export type ResumeImportResult = { ok: true; text: string } | { ok: false; message: string } | null
+/** What's in %APPDATA%\Shadow\knowledge, for the Settings window. */
+export interface KnowledgeSummary {
+  hasAbout: boolean
+  /** Project names, A–Z. */
+  projects: string[]
+}
+export type ResumeImportResult ={ ok: true; text: string } | { ok: false; message: string } | null
 export type ResearchResult = { ok: true; id: string } | { ok: false; message: string }
 export type CreditResult = { ok: true; usd: number; hoursOfListening: number } | { ok: false; message: string }

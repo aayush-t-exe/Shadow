@@ -13,7 +13,7 @@ import {
   type InterviewProfile,
   type ProfileSummary
 } from '@shared/profile'
-import type { CreditResult, KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
+import type { CreditResult, KeyStatus, KeyTestResult, KnowledgeSummary, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 
@@ -292,6 +292,38 @@ function ResumeEditor() {
   )
 }
 
+/** Read-only view of %APPDATA%\Shadow\knowledge; the notes are edited as files. */
+function ProjectNotes() {
+  const [summary, setSummary] = useState<KnowledgeSummary | null>(null)
+
+  useEffect(() => {
+    const load = () => void window.shadow.getKnowledgeSummary().then(setSummary)
+    load()
+    window.addEventListener('focus', load)
+    return () => window.removeEventListener('focus', load)
+  }, [])
+
+  const count = summary?.projects.length ?? 0
+  return (
+    <>
+      <h3 className="subhead">Your projects</h3>
+      <div className="row">
+        <span className="label">Notes</span>
+        <span className="hint" title={summary?.projects.join(', ')}>
+          {summary === null
+            ? 'Loading…'
+            : count === 0 && !summary.hasAbout
+              ? 'None yet. Add an about-me.md and one file per project to the folder.'
+              : `${count} project${count === 1 ? '' : 's'}${summary.hasAbout ? ' + about me' : ''}: ${summary.projects.join(', ')}`}
+        </span>
+        <button className="sbtn" title="Open the folder with your project notes" onClick={() => window.shadow.openKnowledgeFolder()}>
+          <FolderOpen /> Folder
+        </button>
+      </div>
+    </>
+  )
+}
+
 function ProfileEditor({ id, onChanged }: { id: string; onChanged: () => void }) {
   const [saved, setSaved] = useState<InterviewProfile | null>(null)
   const [draft, setDraft] = useState<InterviewProfile | null>(null)
@@ -404,11 +436,13 @@ function InterviewPrep({ activeProfile, onActivate }: { activeProfile: string | 
     <section className="card">
       <h2>Interview prep</h2>
       <p className="hint">
-        Spoken and typed answers use your resume and the company you pick, so “tell me about yourself” or “why do you want to
-        join us” get answers about you. Screenshot solutions don't use them. Both are saved as files in Shadow's data folder.
+        Spoken and typed answers use your resume, your project notes and the company you pick, so “tell me about yourself” or
+        “what's your experience with Next.js” get answers about you. Each answer only gets the notes for the projects it's
+        about, so it stays fast. Screenshot solutions don't use them. All of it is saved as files in Shadow's data folder.
       </p>
 
       <ResumeEditor />
+      <ProjectNotes />
 
       <h3 className="subhead">Company</h3>
       <div className="row">

@@ -79,7 +79,7 @@ describe('interview context in prompts', () => {
   })
 
   it('builds behavioral answers from the resume only when there is one', () => {
-    expect(livePrompt({ language: 'python', style: 'standard', context })).toContain('real project or experience in the resume')
+    expect(livePrompt({ language: 'python', style: 'standard', context })).toContain('real project or experience in the notes')
     expect(livePrompt({ language: 'python', style: 'standard' })).toContain('Never invent the user')
   })
 
@@ -108,7 +108,7 @@ describe('interview context in prompts', () => {
     }
     expect(livePrompt({ language: 'python', style: 'star', context })).toContain('**Situation:**')
     expect(livePrompt({ language: 'java', style: 'standard' })).toContain('a TypeScript question gets TypeScript')
-    expect(livePrompt({ language: 'java', style: 'standard' })).toContain('unless the resume says so')
+    expect(livePrompt({ language: 'java', style: 'standard' })).toContain('unless the resume or project notes say so')
     expect(solvePrompt({ language: 'python', style: 'standard' })).not.toContain('HOW TO SOUND')
   })
 })

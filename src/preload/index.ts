@@ -49,6 +49,8 @@ const api: ShadowAPI = {
   getResume: () => ipcRenderer.invoke(IPC.getResume),
   saveResume: (text) => ipcRenderer.invoke(IPC.saveResume, text),
   importResume: () => ipcRenderer.invoke(IPC.importResume),
+  getKnowledgeSummary: () => ipcRenderer.invoke(IPC.getKnowledgeSummary),
+  openKnowledgeFolder: () => ipcRenderer.send(IPC.openKnowledgeFolder),
 
   onAnswerStart: listener(IPC.answerStart),
   onAnswerStatus: listener(IPC.answerStatus),

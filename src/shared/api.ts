@@ -7,6 +7,7 @@ import type {
   AskRequest,
   CreditResult,
   KeyStatus,
+  KnowledgeSummary,
   KeyTestResult,
   ModelChoice,
   ModelListResult,
@@ -45,6 +46,7 @@ export const IPC = {
   getResume: 'resume:get',
   saveResume: 'resume:save',
   importResume: 'resume:import',
+  getKnowledgeSummary: 'knowledge:summary',
   // renderer → main (fire and forget)
   cancel: 'session:cancel',
   reset: 'session:reset',
@@ -55,6 +57,7 @@ export const IPC = {
   openKeyPage: 'app:open-key-page',
   quit: 'app:quit',
   openProfilesFolder: 'profiles:open-folder',
+  openKnowledgeFolder: 'knowledge:open-folder',
   stopListening: 'listen:stop',
   pushAudio: 'listen:audio',
   reportCaptureWarning: 'listen:capture-warning',
@@ -123,6 +126,9 @@ export interface ShadowAPI {
   saveResume(text: string): Promise<void>
   /** Opens a file picker (PDF, TXT, MD) and saves the text. null when cancelled. */
   importResume(): Promise<ResumeImportResult>
+  /** About-me and project notes in %APPDATA%\Shadow\knowledge. */
+  getKnowledgeSummary(): Promise<KnowledgeSummary>
+  openKnowledgeFolder(): void
 
   onAnswerStart: Listener<AnswerStartEvent>
   onAnswerStatus: Listener<AnswerStatusEvent>

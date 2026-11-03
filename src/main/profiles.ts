@@ -1,7 +1,8 @@
 import { app, dialog, shell } from 'electron'
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
-import type { ResumeImportResult } from '@shared/types'
+import type { KnowledgeSummary, ResumeImportResult } from '@shared/types'
+import { ABOUT_MAX_CHARS, CARD_ID, parseCard, pickCards, projectIndex, type ProjectCard } from '@shared/knowledge'
 import {
   PROFILE_ID,
   PROFILE_MAX_CHARS,
@@ -110,12 +111,52 @@ export async function importResume(): Promise<ResumeImportResult> {
   }
 }
 
-/** The resume and the active company brief, trimmed to the prompt budget. */
-export async function loadInterviewContext(): Promise<InterviewContext> {
+/**
+ * The resume, the user's notes, the active company brief and the project cards that
+ * `query` (the question plus a little context) is about, trimmed to the prompt budget.
+ */
+export async function loadInterviewContext(query = ''): Promise<InterviewContext> {
   const { activeProfile } = getSettings()
-  const [resume, profile] = await Promise.all([getResume(), activeProfile ? readProfile(activeProfile) : null])
+  const [resume, profile, knowledge] = await Promise.all([
+    getResume(),
+    activeProfile ? readProfile(activeProfile) : null,
+    loadKnowledge()
+  ])
   return {
     resume: resume.trim().slice(0, RESUME_MAX_CHARS),
-    profile: profile && { ...profile, body: profile.body.slice(0, PROFILE_MAX_CHARS) }
+    profile: profile && { ...profile, body: profile.body.slice(0, PROFILE_MAX_CHARS) },
+    about: knowledge.about,
+    projectIndex: projectIndex(knowledge.cards),
+    cards: pickCards(knowledge.cards, query)
   }
+}
+
+// ---- knowledge: about-me.md and one card per project ----
+
+export const knowledgeDir = () => join(dataDir(), 'knowledge')
+const projectsDir = () => join(knowledgeDir(), 'projects')
+
+async function loadKnowledge(): Promise<{ about: string; cards: ProjectCard[] }> {
+  let files: string[] = []
+  try {
+    files = await readdir(projectsDir())
+  } catch {
+    // no projects folder yet
+  }
+  const ids = files.filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3)).filter((id) => CARD_ID.test(id))
+  const [about, ...texts] = await Promise.all([
+    readIfExists(join(knowledgeDir(), 'about-me.md')),
+    ...ids.map((id) => readIfExists(join(projectsDir(), `${id}.md`)))
+  ])
+  const cards = ids.flatMap((id, i) => (texts[i] ? [parseCard(id, texts[i])] : []))
+  return { about: (about ?? '').trim().slice(0, ABOUT_MAX_CHARS), cards }
+}
+
+export async function knowledgeSummary(): Promise<KnowledgeSummary> {
+  const { about, cards } = await loadKnowledge()
+  return { hasAbout: about.length > 0, projects: cards.map((c) => c.name).sort((a, b) => a.localeCompare(b)) }
+}
+
+export function openKnowledgeFolder(): void {
+  void mkdir(projectsDir(), { recursive: true }).then(() => shell.openPath(knowledgeDir()))
 }
