@@ -6,6 +6,8 @@ export type HotkeyAction =
   | 'listen'
   | 'copyCode'
   | 'reset'
+  | 'scrollUp'
+  | 'scrollDown'
   | 'moveUp'
   | 'moveDown'
   | 'moveLeft'
@@ -18,7 +20,8 @@ export interface HotkeyDef {
 }
 
 // Ctrl+Shift for actions (rarely used by LeetCode/VS Code/browsers).
-// Moving uses Ctrl+Alt+Arrows because Ctrl+Shift+Arrows is "select word" in every text field.
+// Moving uses Ctrl+Alt+Arrows because Ctrl+Shift+Left/Right is "select word" in every text field.
+// Ctrl+Shift+Up/Down (select to paragraph start/end) is rarely used, so it scrolls the answer.
 export const HOTKEYS: HotkeyDef[] = [
   { action: 'toggle', accelerator: 'CommandOrControl+Shift+Space', label: 'Show / hide' },
   { action: 'screenshot', accelerator: 'CommandOrControl+Shift+S', label: 'Take screenshot' },
@@ -27,6 +30,8 @@ export const HOTKEYS: HotkeyDef[] = [
   { action: 'listen', accelerator: 'CommandOrControl+Shift+L', label: 'Start / stop listening' },
   { action: 'copyCode', accelerator: 'CommandOrControl+Shift+C', label: 'Copy last code block' },
   { action: 'reset', accelerator: 'CommandOrControl+Shift+R', label: 'Reset session' },
+  { action: 'scrollUp', accelerator: 'CommandOrControl+Shift+Up', label: 'Scroll answer up' },
+  { action: 'scrollDown', accelerator: 'CommandOrControl+Shift+Down', label: 'Scroll answer down' },
   { action: 'moveUp', accelerator: 'CommandOrControl+Alt+Up', label: 'Move up' },
   { action: 'moveDown', accelerator: 'CommandOrControl+Alt+Down', label: 'Move down' },
   { action: 'moveLeft', accelerator: 'CommandOrControl+Alt+Left', label: 'Move left' },

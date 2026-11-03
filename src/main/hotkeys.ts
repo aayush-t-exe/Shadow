@@ -26,6 +26,8 @@ const ACTIONS: Record<HotkeyAction, () => void> = {
   },
   copyCode: copyLastCode,
   reset: resetSession,
+  scrollUp: () => broadcast(IPC.scrollAnswer, -1),
+  scrollDown: () => broadcast(IPC.scrollAnswer, 1),
   moveUp: () => moveOverlay(0, -1),
   moveDown: () => moveOverlay(0, 1),
   moveLeft: () => moveOverlay(-1, 0),

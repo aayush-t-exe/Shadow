@@ -4,7 +4,10 @@ import { IPC } from '@shared/api'
 import { lastCodeBlock } from '@shared/markdown'
 import type { AskMode, AskRequest, ModelChoice, ScreenshotInfo, Settings } from '@shared/types'
 import { providerInfo } from '@shared/providers'
+import { styleFromQuestion } from '@shared/profile'
+import { spokeHindi } from '@shared/question'
 import { getSettings } from './settings'
+import { loadInterviewContext } from './profiles'
 import { captureScreen, type Screenshot } from './screenshots'
 import { getModel, speedOptions } from './ai/providers'
 import { raceText } from './ai/race'
@@ -12,11 +15,13 @@ import { getApiKey } from './secrets'
 import { ShadowError, toUserError } from './ai/errors'
 import {
   EXTRACT_PROMPT,
+  HINGLISH_REPLY,
   debugPrompt,
   debugUserText,
   followupPrompt,
   formatTranscript,
   livePrompt,
+  type PromptOptions,
   solvePrompt,
   solveUserText
 } from './ai/prompts'
@@ -60,6 +65,10 @@ export function cancelAnswer(): void {
 
 const resetListeners = new Set<() => void>()
 export const onSessionReset = (fn: () => void) => resetListeners.add(fn)
+
+const manualListeners = new Set<(question: string) => void>()
+/** Ctrl+Shift+Enter answered a heard question, so auto-answer can drop its own late answer. */
+export const onManualLiveAnswer = (fn: (question: string) => void) => manualListeners.add(fn)
 
 export function resetSession(): void {
   resetListeners.forEach((fn) => fn())
@@ -110,8 +119,10 @@ function lastCodeBlockIsClosed(markdown: string): boolean {
  */
 export function smartAnswer(): Promise<void> {
   const heardRecently = getListenStatus().state === 'on' || Date.now() - lastTurnEndedAt() < RECENT_SPEECH_MS
-  if (heardRecently && screenshots.length === 0 && latestQuestion()) {
-    return ask({ mode: 'live', withScreen: true })
+  const question = heardRecently && screenshots.length === 0 ? latestQuestion() : undefined
+  if (question) {
+    manualListeners.forEach((fn) => fn(question))
+    return ask({ mode: 'live', text: question, withScreen: true })
   }
   const mode: AskMode = history.length > 0 && screenshots.length > 0 ? 'debug' : 'solve'
   return ask({ mode })
@@ -157,7 +168,7 @@ export async function ask(req: AskRequest): Promise<void> {
   cancelAnswer() // one answer at a time
   copyWhenCodeCompletes = false
   const settings = getSettings()
-  const promptOptions = { language: settings.language, verbosity: settings.verbosity }
+  const promptOptions: PromptOptions = { language: settings.language, style: settings.answerStyle }
 
   let mode = req.mode
   if (mode === 'debug' && history.length === 0) mode = 'solve'
@@ -166,6 +177,12 @@ export async function ask(req: AskRequest): Promise<void> {
   if (mode === 'live' && !liveQuestion) {
     broadcast(IPC.toast, 'No question heard yet')
     return
+  }
+  // Live and follow-up answers speak for the user: they get the resume and company brief,
+  // and the question's wording ("in one line", "tell me about a time") overrides the saved style.
+  if (mode === 'live' || mode === 'followup') {
+    promptOptions.style = styleFromQuestion(liveQuestion ?? req.text ?? '') ?? settings.answerStyle
+    promptOptions.context = await loadInterviewContext().catch(() => undefined)
   }
   // Solve/debug with an empty queue means "use what's on screen right now".
   if ((mode === 'solve' || mode === 'debug' || req.withScreen) && screenshots.length === 0) await takeScreenshot()
@@ -191,11 +208,14 @@ export async function ask(req: AskRequest): Promise<void> {
     case 'followup':
       instructions = followupPrompt(promptOptions, history.length > 0)
       userText = req.text!.trim()
+      if (spokeHindi(userText)) userText += `\n\n${HINGLISH_REPLY}`
       context = history
       break
     case 'live':
       instructions = livePrompt(promptOptions)
       userText = `RECENT TRANSCRIPT (oldest → newest):\n${formatTranscript(recentTranscript()) || '(empty)'}\n\nQUESTION: ${liveQuestion}`
+      // A rule in the instructions alone loses to English examples and English history.
+      if (spokeHindi(liveQuestion!)) userText += `\n\n${HINGLISH_REPLY}`
       context = history
       break
   }

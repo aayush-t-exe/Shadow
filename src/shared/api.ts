@@ -11,12 +11,15 @@ import type {
   ModelChoice,
   ModelListResult,
   ProviderId,
+  ResearchResult,
+  ResumeImportResult,
   ScreenshotInfo,
   SecretId,
   Settings
 } from './types'
 import type { Rect } from './geometry'
 import type { AudioSourceId, ListenStatus, TranscriptLine } from './live'
+import type { InterviewProfile, ProfileSummary } from './profile'
 
 /** Every IPC channel name lives here so main, preload and renderer can't drift apart. */
 export const IPC = {
@@ -34,6 +37,14 @@ export const IPC = {
   startListening: 'listen:start',
   getListenStatus: 'listen:get-status',
   checkSpeechCredit: 'listen:check-credit',
+  listProfiles: 'profiles:list',
+  getProfile: 'profiles:get',
+  saveProfile: 'profiles:save',
+  deleteProfile: 'profiles:delete',
+  researchCompany: 'profiles:research',
+  getResume: 'resume:get',
+  saveResume: 'resume:save',
+  importResume: 'resume:import',
   // renderer → main (fire and forget)
   cancel: 'session:cancel',
   reset: 'session:reset',
@@ -43,6 +54,7 @@ export const IPC = {
   openSettings: 'app:open-settings',
   openKeyPage: 'app:open-key-page',
   quit: 'app:quit',
+  openProfilesFolder: 'profiles:open-folder',
   stopListening: 'listen:stop',
   pushAudio: 'listen:audio',
   reportCaptureWarning: 'listen:capture-warning',
@@ -59,6 +71,7 @@ export const IPC = {
   keysChanged: 'keys:changed',
   listenStatus: 'listen:status',
   listenToggle: 'listen:toggle',
+  scrollAnswer: 'overlay:scroll-answer',
   transcriptLine: 'listen:transcript-line'
 } as const
 
@@ -98,6 +111,19 @@ export interface ShadowAPI {
   testModel(choice: ModelChoice): Promise<KeyTestResult>
   listModels(provider: ProviderId): Promise<ModelListResult>
 
+  /** Interview profiles: one markdown company brief per file in %APPDATA%\Shadow\profiles. */
+  listProfiles(): Promise<ProfileSummary[]>
+  getProfile(id: string): Promise<InterviewProfile | null>
+  saveProfile(profile: InterviewProfile): Promise<void>
+  deleteProfile(id: string): Promise<void>
+  /** Gemini + Google Search writes a brief and saves it as a profile. */
+  researchCompany(company: string, role: string): Promise<ResearchResult>
+  openProfilesFolder(): void
+  getResume(): Promise<string>
+  saveResume(text: string): Promise<void>
+  /** Opens a file picker (PDF, TXT, MD) and saves the text. null when cancelled. */
+  importResume(): Promise<ResumeImportResult>
+
   onAnswerStart: Listener<AnswerStartEvent>
   onAnswerStatus: Listener<AnswerStatusEvent>
   onAnswerChunk: Listener<AnswerChunkEvent>
@@ -112,4 +138,6 @@ export interface ShadowAPI {
   /** Main asks the overlay to start/stop listening (Ctrl+Shift+L); the overlay owns the microphone. */
   onListenToggle: Listener<void>
   onTranscriptLine: Listener<TranscriptLine>
+  /** Ctrl+Shift+Up/Down: scroll the answer panel up (-1) or down (1). */
+  onScrollAnswer: Listener<-1 | 1>
 }

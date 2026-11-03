@@ -20,6 +20,14 @@ const HINGLISH =
 /** The same in Devanagari. (\b doesn't work outside ASCII, so no word boundaries here.) */
 const HINDI = /(क्या|क्यों|क्यूँ|कैसे|कब|कहाँ|कहां|कौन|कितन|बताओ|बताइए|बताइये|बताएं|समझाओ|समझाइए|लिखो|लिखिए)/
 
+/** Hindi grammar words that hardly ever appear in English sentences. */
+const HINDI_GLUE = /\b(hai|hain|aur|ka|ki|ke|ko|mein|hota|hoti|hote|karte|karta|karo|nahi|nahin|toh|matlab|wala|wali)\b/gi
+
+/** Did the speaker use Hindi (in either script)? Answers should then come back in Hinglish. */
+export function spokeHindi(text: string): boolean {
+  return /[ऀ-ॿ]/.test(text) || HINGLISH.test(text) || (text.match(HINDI_GLUE)?.length ?? 0) >= 2
+}
+
 /** Acknowledgements and filler that never need an answer (English and Hindi). */
 const FILLER =
   /^(ok|okay|right|great|cool|sure|yes|yeah|yep|no|nope|alright|mm+|hmm+|uh+|um+|thanks|thank you|got it|makes sense|sounds good|perfect|nice|good|haan|han|achha|accha|acha|theek hai|thik hai|ji|haan ji|हाँ|हां|अच्छा|ठीक है|जी)[\s.!,।]*$/i
@@ -53,6 +61,14 @@ const MAX_RUN_TURNS = 8
 const MAX_RUN_GAP_MS = 20_000
 
 /**
+ * A turn that starts a fresh question ("And what's a thread?", "Next question, explain…")
+ * rather than continuing one ("…return all subsets"). Narrower than OPENER on purpose:
+ * fragments of a problem often start with "is", "do" or "find".
+ */
+const BEGINS_QUESTION =
+  /^((and|so|okay|ok|now|next|also|alright|right|um+|uh+|then|cool|great)[\s,.]+)*(what|why|how|when|where|which|who|can you|could you|would you|will you|do you|did you|have you|tell me|walk me|explain|describe|implement|write|design|give me|show me|define|compare|the (next )?(question|problem) is|next question|given (an?|the|two|some)|let'?s (move|talk|switch)|moving on)\b/i
+
+/**
  * The latest question as it was actually spoken: finds the newest question-like turn and
  * joins it with the speaker's directly preceding turns (same speaker, no long silence).
  * Example: "Given an array of unique elements…" + "return all subsets" + "no duplicates".
@@ -66,10 +82,14 @@ export function latestQuestionRun(turns: readonly SpokenTurn[]): string | undefi
     }
   }
   if (end === -1) return undefined
+  // Walk back over the fragments of this one question, stopping where it began: a turn that
+  // starts a new question, or a turn before it that was already a finished question ("…?").
   let start = end
   while (
     start > 0 &&
     end - start + 1 < MAX_RUN_TURNS &&
+    !BEGINS_QUESTION.test(turns[start].text.trim()) &&
+    !turns[start - 1].text.trim().endsWith('?') &&
     turns[start - 1].source === turns[end].source &&
     turns[start].endedAt - turns[start - 1].endedAt <= MAX_RUN_GAP_MS
   ) {

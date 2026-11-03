@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Check, ExternalLink, KeyRound, LoaderCircle, RefreshCw, X, Zap } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Check, ExternalLink, FileUp, FolderOpen, Globe, KeyRound, LoaderCircle, Plus, RefreshCw, Trash2, X, Zap } from 'lucide-react'
 import '../styles/base.css'
 import '../overlay/overlay.css'
 import './settings.css'
 import { HOTKEYS } from '@shared/hotkeys'
 import { PROVIDERS, SPEECH_PROVIDERS, providerInfo } from '@shared/providers'
+import {
+  ANSWER_STYLES,
+  PROFILE_MAX_CHARS,
+  RESUME_MAX_CHARS,
+  profileId,
+  type InterviewProfile,
+  type ProfileSummary
+} from '@shared/profile'
 import type { CreditResult, KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
@@ -210,6 +218,241 @@ function CreditRow() {
   )
 }
 
+// ---------- interview prep ----------
+
+const errorText = (err: unknown) =>
+  err instanceof Error ? err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(err)
+
+/** Character count that warns once the text is past what answers will use. */
+function CharCount({ length, max }: { length: number; max: number }) {
+  return (
+    <span className={length > max ? 'result-bad' : 'hint'} style={{ margin: 0 }}>
+      {length.toLocaleString()} / {max.toLocaleString()} characters{length > max ? ' (the rest is cut off)' : ''}
+    </span>
+  )
+}
+
+function ResumeEditor() {
+  const [saved, setSaved] = useState('')
+  const [draft, setDraft] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    void window.shadow.getResume().then((text) => {
+      setSaved(text)
+      setDraft(text)
+    })
+  }, [])
+
+  const commit = async () => {
+    if (draft === saved) return
+    await window.shadow.saveResume(draft)
+    setSaved(draft)
+  }
+  const importFile = async () => {
+    setImporting(true)
+    setMessage(null)
+    const result = await window.shadow.importResume()
+    setImporting(false)
+    if (!result) return
+    if (result.ok) {
+      setSaved(result.text)
+      setDraft(result.text)
+      setMessage({ ok: true, text: 'Imported. Check the text below and fix anything the PDF mangled.' })
+    } else {
+      setMessage({ ok: false, text: result.message })
+    }
+  }
+
+  return (
+    <>
+      <div className="row">
+        <span className="label">Resume</span>
+        <button className="sbtn" onClick={importFile} disabled={importing}>
+          {importing ? <LoaderCircle className="animate-spin" /> : <FileUp />} Import PDF or text
+        </button>
+        <CharCount length={draft.length} max={RESUME_MAX_CHARS} />
+      </div>
+      {message && (
+        <div className="row">
+          <span className="label" />
+          <span className={message.ok ? 'result-ok' : 'result-bad'}>{message.text}</span>
+        </div>
+      )}
+      <textarea
+        className="textarea"
+        rows={8}
+        value={draft}
+        placeholder="Import your resume, or paste it here. Answers to “tell me about yourself” and “tell me about a project” will use it."
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+      />
+    </>
+  )
+}
+
+function ProfileEditor({ id, onChanged }: { id: string; onChanged: () => void }) {
+  const [saved, setSaved] = useState<InterviewProfile | null>(null)
+  const [draft, setDraft] = useState<InterviewProfile | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void window.shadow.getProfile(id).then((p) => {
+      setSaved(p)
+      setDraft(p)
+    })
+  }, [id])
+
+  if (!draft || !saved) return null
+  const commit = async () => {
+    if (draft.company === saved.company && draft.role === saved.role && draft.body === saved.body) return
+    try {
+      setError('')
+      await window.shadow.saveProfile(draft)
+      setSaved(draft)
+      onChanged()
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+  const remove = async () => {
+    if (!window.confirm(`Delete the brief for ${saved.company}?`)) return
+    await window.shadow.deleteProfile(id) // also clears it as the active brief
+    onChanged()
+  }
+
+  return (
+    <>
+      <div className="row">
+        <span className="label">Name and role</span>
+        <input className="input" value={draft.company} onChange={(e) => setDraft({ ...draft, company: e.target.value })} onBlur={commit} />
+        <input
+          className="input"
+          value={draft.role}
+          placeholder="Role, e.g. SDE Intern"
+          onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+          onBlur={commit}
+        />
+        <button className="sbtn danger" title="Delete this brief" onClick={remove}>
+          <Trash2 />
+        </button>
+      </div>
+      <div className="row">
+        <span className="label" />
+        <CharCount length={draft.body.length} max={PROFILE_MAX_CHARS} />
+        {error && <span className="result-bad">{error}</span>}
+      </div>
+      <textarea
+        className="textarea"
+        rows={12}
+        value={draft.body}
+        placeholder="What the company does, the job description, the interview rounds, your notes…"
+        onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+        onBlur={commit}
+      />
+    </>
+  )
+}
+
+function InterviewPrep({ activeProfile, onActivate }: { activeProfile: string | null; onActivate: (id: string | null) => Promise<void> }) {
+  const [profiles, setProfiles] = useState<ProfileSummary[]>([])
+  const [company, setCompany] = useState('')
+  const [role, setRole] = useState('')
+  const [researching, setResearching] = useState(false)
+  const [error, setError] = useState('')
+
+  // Briefs can arrive from outside Shadow (e.g. the /company-brief skill), so re-read the folder on focus.
+  const refresh = useCallback(() => void window.shadow.listProfiles().then(setProfiles), [])
+  useEffect(() => {
+    refresh()
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [refresh])
+
+  const confirmReplace = (id: string) =>
+    !profiles.some((p) => p.id === id) || window.confirm(`There's already a brief for ${company.trim()}. Replace it?`)
+
+  const activate = async (id: string) => {
+    setCompany('')
+    setRole('')
+    refresh()
+    await onActivate(id)
+  }
+  const createBlank = async () => {
+    const id = profileId(company, role)
+    if (!confirmReplace(id)) return
+    try {
+      setError('')
+      await window.shadow.saveProfile({ id, company: company.trim(), role: role.trim(), body: '' })
+      await activate(id)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+  const research = async () => {
+    if (!confirmReplace(profileId(company, role))) return
+    setResearching(true)
+    setError('')
+    const result = await window.shadow.researchCompany(company.trim(), role.trim())
+    setResearching(false)
+    if (result.ok) await activate(result.id)
+    else setError(result.message)
+  }
+
+  return (
+    <section className="card">
+      <h2>Interview prep</h2>
+      <p className="hint">
+        Spoken and typed answers use your resume and the company you pick, so “tell me about yourself” or “why do you want to
+        join us” get answers about you. Screenshot solutions don't use them. Both are saved as files in Shadow's data folder.
+      </p>
+
+      <ResumeEditor />
+
+      <h3 className="subhead">Company</h3>
+      <div className="row">
+        <span className="label">Use brief</span>
+        <select className="select" value={activeProfile ?? ''} onChange={(e) => void onActivate(e.target.value || null)}>
+          <option value="">None</option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.role ? `${p.company} · ${p.role}` : p.company}
+            </option>
+          ))}
+        </select>
+        <button className="sbtn" title="Open the folder with the brief files" onClick={() => window.shadow.openProfilesFolder()}>
+          <FolderOpen /> Folder
+        </button>
+      </div>
+
+      <div className="row">
+        <span className="label">New brief</span>
+        <input className="input" value={company} placeholder="Company, e.g. Razorpay" onChange={(e) => setCompany(e.target.value)} />
+        <input className="input" value={role} placeholder="Role (optional)" onChange={(e) => setRole(e.target.value)} />
+      </div>
+      <div className="row">
+        <span className="label" />
+        <button className="sbtn primary" disabled={!company.trim() || researching} onClick={research}>
+          {researching ? <LoaderCircle className="animate-spin" /> : <Globe />} {researching ? 'Researching…' : 'Research with Gemini'}
+        </button>
+        <button className="sbtn" disabled={!company.trim() || researching} onClick={createBlank}>
+          <Plus /> Blank
+        </button>
+        {error && <span className="result-bad">{error}</span>}
+      </div>
+      <p className="hint" style={{ marginTop: 8 }}>
+        Research uses Gemini with Google Search (your free Gemini key) and takes about half a minute. You can also paste a job
+        description into a blank brief, or drop any markdown file into the folder.
+      </p>
+
+      {activeProfile && profiles.some((p) => p.id === activeProfile) && (
+        <ProfileEditor key={activeProfile} id={activeProfile} onChanged={refresh} />
+      )}
+    </section>
+  )
+}
+
 export function SettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [keys, setKeys] = useState<KeyStatus>({})
@@ -339,16 +582,23 @@ export function SettingsApp() {
           </span>
         </div>
         <div className="row">
-          <span className="label">Detail</span>
+          <span className="label">Style</span>
           <span className="segmented">
-            {(['concise', 'detailed'] as const).map((verbosity) => (
-              <button key={verbosity} aria-pressed={settings.verbosity === verbosity} onClick={() => save({ verbosity })}>
-                {verbosity === 'concise' ? 'Concise' : 'Detailed'}
+            {ANSWER_STYLES.map((s) => (
+              <button key={s.id} title={s.hint} aria-pressed={settings.answerStyle === s.id} onClick={() => save({ answerStyle: s.id })}>
+                {s.label}
               </button>
             ))}
           </span>
         </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          {ANSWER_STYLES.find((s) => s.id === settings.answerStyle)?.hint}. Shapes spoken and typed answers; for screenshot
+          solutions it only changes the length. Asking “in one line” or “tell me about a time…” picks the matching style for
+          that answer.
+        </p>
       </section>
+
+      <InterviewPrep activeProfile={settings.activeProfile} onActivate={(activeProfile) => save({ activeProfile })} />
 
       <section className="card">
         <h2>Local and custom servers</h2>

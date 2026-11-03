@@ -4,7 +4,7 @@ import { keycaps } from '@shared/hotkeys'
 
 describe('prompts', () => {
   it('builds a Python solve prompt with Python rules and fence tag', () => {
-    const p = solvePrompt({ language: 'python', verbosity: 'concise' })
+    const p = solvePrompt({ language: 'python', style: 'standard' })
     expect(p).toContain('Solve it in Python 3')
     expect(p).toContain('```python')
     expect(p).toContain('PYTHON RULES')
@@ -13,13 +13,13 @@ describe('prompts', () => {
   })
 
   it('tells the model to copy the stub and to detect LeetCode Python 2', () => {
-    const p = solvePrompt({ language: 'python', verbosity: 'concise' })
+    const p = solvePrompt({ language: 'python', style: 'standard' })
     expect(p).toContain('Add type hints only if the stub has them')
     expect(p).toContain('it is Python 2')
   })
 
   it('builds a Java solve prompt with Java rules', () => {
-    const p = solvePrompt({ language: 'java', verbosity: 'detailed' })
+    const p = solvePrompt({ language: 'java', style: 'detailed' })
     expect(p).toContain('Solve it in Java 17')
     expect(p).toContain('```java')
     expect(p).toContain('JAVA RULES')
@@ -27,35 +27,38 @@ describe('prompts', () => {
   })
 
   it('keeps the section order the UI relies on', () => {
-    const p = solvePrompt({ language: 'python', verbosity: 'concise' })
+    const p = solvePrompt({ language: 'python', style: 'standard' })
     const order = ['## Problem', '## Approach', '## Code', '## Complexity', '## Edge Cases', '## Dry Run'].map((h) => p.indexOf(h))
     expect(order.every((i) => i >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })
 
   it('marks fixed lines with the right comment syntax in debug mode', () => {
-    expect(debugPrompt({ language: 'python', verbosity: 'concise' })).toContain('# FIX')
-    expect(debugPrompt({ language: 'java', verbosity: 'concise' })).toContain('// FIX')
+    expect(debugPrompt({ language: 'python', style: 'standard' })).toContain('# FIX')
+    expect(debugPrompt({ language: 'java', style: 'standard' })).toContain('// FIX')
   })
 
   it('uses a general prompt for a first question and a follow-up prompt afterwards', () => {
-    expect(followupPrompt({ language: 'java', verbosity: 'concise' }, false)).toContain('programming tutor')
-    expect(followupPrompt({ language: 'java', verbosity: 'concise' }, true)).toContain('Continue helping')
+    expect(followupPrompt({ language: 'java', style: 'standard' }, false)).toContain('programming tutor')
+    expect(followupPrompt({ language: 'java', style: 'standard' }, true)).toContain('Continue helping')
   })
 
   it('forbids LaTeX math in every answer prompt', () => {
-    const opts = { language: 'python', verbosity: 'concise' } as const
+    const opts = { language: 'python', style: 'standard' } as const
     for (const p of [solvePrompt(opts), followupPrompt(opts, false), livePrompt(opts)]) {
       expect(p).toContain('Never use LaTeX')
     }
   })
 
   it('keeps live answers short, spoken and in the language of the question', () => {
-    const p = livePrompt({ language: 'java', verbosity: 'concise' })
+    const p = livePrompt({ language: 'java', style: 'standard' })
     expect(p).toContain('**In short:**')
     expect(p).toContain('At most 120 words')
-    expect(p).toContain('Hinglish')
+    expect(p).toContain('reply in Hinglish, written in English letters')
+    expect(p).toContain('Never reply in Devanagari')
     expect(p).toContain('Keep code, identifiers and technical terms')
+    // The classifier rewrites the question, and used to translate Hinglish into English.
+    expect(TRIAGE_PROMPT).toContain('Never translate it')
     expect(p).not.toContain('## Explanation')
   })
 

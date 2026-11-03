@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { latestQuestionRun, looksLikeQuestion, questionScore, type SpokenTurn } from '@shared/question'
+import { latestQuestionRun, looksLikeQuestion, questionScore, spokeHindi, type SpokenTurn } from '@shared/question'
 import { similarity } from '@shared/text'
 
 describe('looksLikeQuestion', () => {
@@ -35,6 +35,24 @@ describe('looksLikeQuestion', () => {
   })
 })
 
+describe('spokeHindi', () => {
+  it.each([
+    'Graph aur SQL ka difference kya hai?',
+    'rest और graph QL का difference क्या है?',
+    'REST aur GraphQL mein difference hota hai na',
+    'linked list ko reverse karo'
+  ])('hears Hindi in "%s"', (text) => {
+    expect(spokeHindi(text)).toBe(true)
+  })
+
+  it.each(['What is the difference between REST and GraphQL?', 'Explain it to me and give an example', 'how does Kafka handle a key'])(
+    'leaves English alone: "%s"',
+    (text) => {
+      expect(spokeHindi(text)).toBe(false)
+    }
+  )
+})
+
 describe('latestQuestionRun', () => {
   // The real transcript from a mock-interview test: one problem read out over five turns.
   const t0 = 1_000_000
@@ -59,6 +77,35 @@ describe('latestQuestionRun', () => {
   it('stops at a long silence', () => {
     const spaced = turns.map((t, i) => (i === 4 ? { ...t, endedAt: t.endedAt + 60_000 } : t))
     expect(latestQuestionRun(spaced)).toBe(turns[4].text)
+  })
+
+  it('answers only the newest of several questions asked in a row', () => {
+    const asked: SpokenTurn[] = [
+      { source: 'system', text: 'What is a process?', endedAt: t0 },
+      { source: 'system', text: 'And what is a thread', endedAt: t0 + 4000 },
+      { source: 'system', text: 'how do they share memory', endedAt: t0 + 9000 }
+    ]
+    expect(latestQuestionRun(asked)).toBe('how do they share memory')
+    expect(latestQuestionRun(asked.slice(0, 2))).toBe('And what is a thread')
+  })
+
+  it('stops after a finished question even when the next turn has no opener', () => {
+    const asked: SpokenTurn[] = [
+      { source: 'system', text: 'Tell me about your project?', endedAt: t0 },
+      { source: 'system', text: 'the hardest bug in it, can you explain how you fixed it', endedAt: t0 + 5000 }
+    ]
+    expect(latestQuestionRun(asked)).toBe('the hardest bug in it, can you explain how you fixed it')
+  })
+
+  it('starts the run at "next question" and at a problem statement', () => {
+    const asked: SpokenTurn[] = [
+      { source: 'system', text: 'explain closures in JavaScript', endedAt: t0 },
+      { source: 'system', text: 'Okay, next question. Given an array of integers', endedAt: t0 + 6000 },
+      { source: 'system', text: 'return the indices of two numbers that add up to target', endedAt: t0 + 9000 }
+    ]
+    expect(latestQuestionRun(asked)).toBe(
+      'Okay, next question. Given an array of integers return the indices of two numbers that add up to target'
+    )
   })
 
   it('returns undefined when nothing sounds like a question', () => {

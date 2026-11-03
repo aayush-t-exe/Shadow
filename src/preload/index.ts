@@ -40,6 +40,16 @@ const api: ShadowAPI = {
   testModel: (choice) => ipcRenderer.invoke(IPC.testModel, choice),
   listModels: (provider) => ipcRenderer.invoke(IPC.listModels, provider),
 
+  listProfiles: () => ipcRenderer.invoke(IPC.listProfiles),
+  getProfile: (id) => ipcRenderer.invoke(IPC.getProfile, id),
+  saveProfile: (profile) => ipcRenderer.invoke(IPC.saveProfile, profile),
+  deleteProfile: (id) => ipcRenderer.invoke(IPC.deleteProfile, id),
+  researchCompany: (company, role) => ipcRenderer.invoke(IPC.researchCompany, company, role),
+  openProfilesFolder: () => ipcRenderer.send(IPC.openProfilesFolder),
+  getResume: () => ipcRenderer.invoke(IPC.getResume),
+  saveResume: (text) => ipcRenderer.invoke(IPC.saveResume, text),
+  importResume: () => ipcRenderer.invoke(IPC.importResume),
+
   onAnswerStart: listener(IPC.answerStart),
   onAnswerStatus: listener(IPC.answerStatus),
   onAnswerChunk: listener(IPC.answerChunk),
@@ -52,7 +62,8 @@ const api: ShadowAPI = {
   onKeysChanged: listener(IPC.keysChanged),
   onListenStatus: listener(IPC.listenStatus),
   onListenToggle: listener(IPC.listenToggle),
-  onTranscriptLine: listener(IPC.transcriptLine)
+  onTranscriptLine: listener(IPC.transcriptLine),
+  onScrollAnswer: listener(IPC.scrollAnswer)
 }
 
 contextBridge.exposeInMainWorld('shadow', api)

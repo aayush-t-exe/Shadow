@@ -3,7 +3,8 @@
 
 export type ProviderId = 'gemini' | 'groq' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
 export type CodeLanguage = 'python' | 'java'
-export type Verbosity = 'concise' | 'detailed'
+/** How live and follow-up answers are shaped; solve answers use it for length only. */
+export type AnswerStyle = 'standard' | 'concise' | 'bullets' | 'star' | 'detailed'
 
 export interface ModelChoice {
   provider: ProviderId
@@ -13,9 +14,11 @@ export interface ModelChoice {
 }
 
 export interface Settings {
-  schemaVersion: 1
+  schemaVersion: 2
   language: CodeLanguage
-  verbosity: Verbosity
+  answerStyle: AnswerStyle
+  /** Id of the interview profile (company brief) used for live and follow-up answers, or null. */
+  activeProfile: string | null
   answerModel: ModelChoice
   /** Reads screenshots into text when `answerModel` cannot see images. */
   visionModel: ModelChoice
@@ -102,4 +105,6 @@ export interface AnswerErrorEvent {
 
 export type ModelListResult = { ok: true; models: string[] } | { ok: false; message: string }
 export type KeyTestResult = { ok: true; ms: number } | { ok: false; message: string }
+export type ResumeImportResult = { ok: true; text: string } | { ok: false; message: string } | null
+export type ResearchResult = { ok: true; id: string } | { ok: false; message: string }
 export type CreditResult = { ok: true; usd: number; hoursOfListening: number } | { ok: false; message: string }

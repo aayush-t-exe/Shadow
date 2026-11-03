@@ -5,9 +5,10 @@ import type { Settings } from '@shared/types'
 import { providerInfo } from '@shared/providers'
 
 export const demoSettings: Settings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   language: 'python',
-  verbosity: 'concise',
+  answerStyle: 'standard',
+  activeProfile: null,
   answerModel: providerInfo('gemini').defaultModel,
   visionModel: providerInfo('gemini').defaultModel,
   backupModel: providerInfo('groq').defaultModel,
@@ -46,6 +47,15 @@ const mock: ShadowAPI = {
   deleteKey: async () => ({}),
   testModel: async () => ({ ok: true, ms: 412 }),
   listModels: async () => ({ ok: true, models: [] }),
+  listProfiles: async () => [],
+  getProfile: async () => null,
+  saveProfile: async () => {},
+  deleteProfile: async () => {},
+  researchCompany: async () => ({ ok: false, message: 'Not available in the showcase' }),
+  openProfilesFolder: noop,
+  getResume: async () => '',
+  saveResume: async () => {},
+  importResume: async () => null,
   onAnswerStart: listen,
   onAnswerStatus: listen,
   onAnswerChunk: listen,
@@ -58,7 +68,8 @@ const mock: ShadowAPI = {
   onKeysChanged: listen,
   onListenStatus: listen,
   onListenToggle: listen,
-  onTranscriptLine: listen
+  onTranscriptLine: listen,
+  onScrollAnswer: listen
 }
 
 window.shadow = mock

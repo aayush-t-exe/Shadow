@@ -8,6 +8,18 @@ import { isTrustedUrl } from './trust'
 import { checkDeepgramCredit } from './live/credit'
 import { getListenStatus, pushAudio, setCaptureWarning, startListening, stopListening } from './live/listen'
 import { getSettings, updateSettings } from './settings'
+import { PROFILE_ID } from '@shared/profile'
+import {
+  deleteProfile,
+  getResume,
+  importResume,
+  listProfiles,
+  openProfilesFolder,
+  readProfile,
+  saveProfile,
+  saveResume
+} from './profiles'
+import { researchCompany } from './ai/research'
 import { deleteApiKey, keyStatus, setApiKey } from './secrets'
 import { getModel, listModels } from './ai/providers'
 import { toUserError } from './ai/errors'
@@ -39,6 +51,13 @@ const askRequest = z.object({
   withScreen: z.boolean().optional()
 })
 const modelChoice = z.object({ provider: providerId, modelId: z.string().min(1).max(200), vision: z.boolean() })
+const profileIdSchema = z.string().regex(PROFILE_ID)
+const profile = z.object({
+  id: profileIdSchema,
+  company: z.string().trim().min(1).max(120),
+  role: z.string().trim().max(120),
+  body: z.string().max(50_000)
+})
 const rectList = z.array(z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })).max(50)
 
 async function testModel(choice: ModelChoice): Promise<KeyTestResult> {
@@ -82,6 +101,21 @@ export function registerIpc() {
   })
   handle(IPC.testModel, (choice: unknown) => testModel(modelChoice.parse(choice)))
   handle(IPC.listModels, (provider: unknown) => listModels(providerId.parse(provider), getSettings()))
+
+  handle(IPC.listProfiles, () => listProfiles())
+  handle(IPC.getProfile, (id: unknown) => readProfile(profileIdSchema.parse(id)))
+  handle(IPC.saveProfile, (p: unknown) => saveProfile(profile.parse(p)))
+  handle(IPC.deleteProfile, async (id: unknown) => {
+    await deleteProfile(profileIdSchema.parse(id))
+    broadcast(IPC.settingsChanged, getSettings())
+  })
+  handle(IPC.researchCompany, (company: unknown, role: unknown) =>
+    researchCompany(z.string().trim().min(1).max(120).parse(company), z.string().trim().max(120).parse(role))
+  )
+  handle(IPC.getResume, () => getResume())
+  handle(IPC.saveResume, (text: unknown) => saveResume(z.string().max(50_000).parse(text)))
+  handle(IPC.importResume, () => importResume())
+  on(IPC.openProfilesFolder, () => openProfilesFolder())
 
   on(IPC.cancel, () => cancelAnswer())
   on(IPC.reset, () => resetSession())
