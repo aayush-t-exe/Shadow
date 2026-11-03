@@ -61,8 +61,18 @@ describe('pickCards', () => {
   })
 
   it('falls back to featured projects for personal questions that name none', () => {
-    expect(pickCards(cards, 'Tell me about yourself').map((c) => c.name).sort()).toEqual(['Shadow', 'Zen-Z'])
     expect(pickCards(cards, 'What was the hardest bug you fixed?')).toHaveLength(2)
+  })
+
+  it('an introduction gets only the lead project, by rank', () => {
+    const lead = card('lead', 'name: Lead\nfeatured: 1')
+    const second = card('a-second', 'name: Second\nfeatured: 2')
+    expect(lead.rank).toBe(1)
+    expect(zenz.rank).toBe(1) // "true" counts as 1
+    expect(gallery.rank).toBeGreaterThan(100)
+    expect(pickCards([second, lead], 'Tell me about yourself').map((c) => c.name)).toEqual(['Lead'])
+    expect(pickCards([second, lead], 'Can you introduce yourself?').map((c) => c.name)).toEqual(['Lead'])
+    expect(pickCards([second, lead], 'Tell me about a project you are proud of').map((c) => c.name)).toEqual(['Lead', 'Second'])
   })
 
   it('adds nothing to plain technical questions, so they stay fast', () => {

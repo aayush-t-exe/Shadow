@@ -27,6 +27,8 @@ export interface ProjectCard {
   stack: string[]
   /** Used for "tell me about yourself / a project" when no project is named. */
   featured: boolean
+  /** "featured: 1" leads; lower comes first. "featured: true" counts as 1. */
+  rank: number
   when: string
   /** First line of the body: what the project is, in one sentence. */
   summary: string
@@ -34,7 +36,7 @@ export interface ProjectCard {
 }
 
 export const CARD_ID = /^[a-z0-9][a-z0-9-]{0,79}$/
-export const ABOUT_MAX_CHARS = 4000
+export const ABOUT_MAX_CHARS = 6000
 export const CARD_MAX_CHARS = 3200
 export const MAX_PICKED_CARDS = 2
 
@@ -55,12 +57,15 @@ export function parseCard(id: string, text: string): ProjectCard {
     }
   }
   const body = (match ? normalized.slice(match[0].length) : normalized).trim()
+  const featured = (fields.featured ?? '').toLowerCase()
+  const rank = /^(true|yes)$/.test(featured) ? 1 : /^[1-9]\d*$/.test(featured) ? Number(featured) : 0
   return {
     id,
     name: fields.name || id,
     aliases: list(fields.aliases).map((a) => a.toLowerCase()),
     stack: list(fields.stack),
-    featured: /^(true|yes)$/i.test(fields.featured ?? ''),
+    featured: rank > 0,
+    rank: rank || 999, // not Infinity: Infinity - Infinity is NaN in a sort comparator
     when: fields.when ?? '',
     summary: body.split('\n').find((l) => l.trim() && !l.startsWith('#'))?.trim() ?? '',
     body: body.slice(0, CARD_MAX_CHARS)
@@ -113,6 +118,8 @@ function mentioned(terms: string[], query: string): Set<string> {
   return new Set(kept.map((k) => k.term))
 }
 
+const INTRO = /\b(tell me about yourself|introduce yourself|introduction|walk me through your (resume|background)|apne baare mein|about yourself)\b/i
+
 /** The cards this question is about, best first, at most `max`. Pure and fast. */
 export function pickCards(cards: ProjectCard[], query: string, max = MAX_PICKED_CARDS): ProjectCard[] {
   if (!query.trim() || cards.length === 0) return []
@@ -129,11 +136,14 @@ export function pickCards(cards: ProjectCard[], query: string, max = MAX_PICKED_
   const hits = scored.filter((s) => s.score > 0)
   if (hits.length > 0) {
     return hits
-      .sort((a, b) => b.score - a.score || Number(b.card.featured) - Number(a.card.featured))
+      .sort((a, b) => b.score - a.score || a.card.rank - b.card.rank)
       .slice(0, max)
       .map((s) => s.card)
   }
-  return PERSONAL.test(query) ? cards.filter((c) => c.featured).slice(0, max) : []
+  const featured = cards.filter((c) => c.featured).sort((a, b) => a.rank - b.rank)
+  // An introduction tells one story well: only the lead project.
+  if (INTRO.test(query)) return featured.slice(0, 1)
+  return PERSONAL.test(query) ? featured.slice(0, max) : []
 }
 
 const INDEX_STACK_ITEMS = 6
@@ -141,7 +151,7 @@ const INDEX_STACK_ITEMS = 6
 /** One line per project, featured first: enough to name the right one, cheap enough for every answer. */
 export function projectIndex(cards: ProjectCard[]): string {
   return [...cards]
-    .sort((a, b) => Number(b.featured) - Number(a.featured) || a.name.localeCompare(b.name))
+    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))
     .map((c) => {
       const stack = c.stack.slice(0, INDEX_STACK_ITEMS).join(', ')
       return `- ${c.name}${c.when ? ` (${c.when})` : ''}: ${c.summary}${stack ? ` Stack: ${stack}.` : ''}`
