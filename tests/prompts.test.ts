@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TRIAGE_PROMPT, debugPrompt, followupPrompt, livePrompt, solvePrompt, solveUserText } from '../src/main/ai/prompts'
+import { CONTINUE_CUT_OFF, ENGLISH_REPLY, TRIAGE_PROMPT, debugPrompt, followupPrompt, livePrompt, solvePrompt, solveUserText } from '../src/main/ai/prompts'
 import { keycaps } from '@shared/hotkeys'
 
 describe('prompts', () => {
@@ -54,8 +54,11 @@ describe('prompts', () => {
     const p = livePrompt({ language: 'java', style: 'standard' })
     expect(p).toContain('**In short:**')
     expect(p).toContain('At most 120 words')
-    expect(p).toContain('reply in Hinglish, written in English letters')
+    // The language is decided in code and sent as the last line of the user message.
+    expect(p).toContain('The LANGUAGE line at the end')
     expect(p).toContain('Never reply in Devanagari')
+    expect(ENGLISH_REPLY).toContain('Write the whole answer in English')
+    expect(CONTINUE_CUT_OFF).toContain('do not repeat anything')
     expect(p).toContain('Keep code, identifiers and technical terms')
     // The classifier rewrites the question, and used to translate Hinglish into English.
     expect(TRIAGE_PROMPT).toContain('Never translate it')

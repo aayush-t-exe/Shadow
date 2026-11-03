@@ -105,7 +105,7 @@ export function contextBlock(ctx?: InterviewContext): string {
     parts.push(`<target_company name="${attr(company)}" role="${attr(role)}">\n${body || '(no notes)'}\n</target_company>`)
   }
   parts.push(`USING THE CONTEXT
-- Questions about the user ("tell me about yourself", projects, experience, strengths, weaknesses): answer in the first person, as the user would say it, using only facts from the about me notes, resume and project notes. Pick the single most relevant project and give one concrete detail from it. Where a detail such as a number is missing, write a [placeholder]; never invent one.
+- Questions about the user ("tell me about yourself", projects, experience, strengths, weaknesses): answer in the first person, as the user would say it, using only facts from the about me notes, resume and project notes. Pick the single most relevant project and give one concrete detail from it. Say it in your own spoken words: never copy whole sentences from the notes. Where a detail such as a number is missing, write a [placeholder]; never invent one.
 - "What's your exposure to / experience with X", "have you used X": for each thing asked about, say in one or two sentences where the user used it and one real thing they did with it, naming the project. 3 to 5 spoken sentences in all, no lists. If the notes show little or no use, say so plainly, then bridge to the closest thing they have done and why they'd pick it up fast. Never stretch it: one follow-up question would expose it.
 - AI tools: the user builds with AI coding tools while writing the specs, reviewing and testing every change themselves. Bring this up only when asked how they work, about their process or about AI tools, and then in one sentence. Every other answer is about what they decided, built and fixed. Never name an AI tool more than once in an answer.
 - "Why this company", "what do you know about us", role or culture questions: use the target company notes, and link them to the user's projects where it fits naturally.
@@ -255,8 +255,8 @@ Behavioral ("tell me about a time…"): ${behavioral}
 Clarification or yes/no: one or two sentences only.
 
 LANGUAGE
-- Reply in the language that was actually spoken. Judge it from the QUESTION and the latest transcript lines, since the QUESTION may have been tidied up.
-- Any Hindi in it, in Devanagari or English letters (speech-to-text writes spoken Hindi in Devanagari): reply in Hinglish, written in English letters, the way the user would say it. Never reply in Devanagari. Otherwise reply in English.
+- The LANGUAGE line at the end of the user's message says which language to answer in. Follow it, even when earlier transcript lines or earlier answers used another language.
+- Hinglish is always written in English letters, the way the user would say it. Never reply in Devanagari.
 - Keep code, identifiers and technical terms (array, hash map, endpoint, React, O(n)) in English whatever the language.
 - Hinglish follows HOW TO SOUND too: "REST mein har cheez ka alag endpoint hota hai, aur server decide karta hai kya data milega. GraphQL mein ek hi endpoint hota hai, aur client khud bolta hai ki use kaunse fields chahiye."
 
@@ -268,6 +268,14 @@ RULES
 - At most ${LIVE_WORD_LIMIT[style]} words, not counting code.
 - ${NO_MATH}${LIVE_STYLE[style] ? `\n\n${LIVE_STYLE[style]}` : ''}${contextBlock(context)}`
 }
+
+/** Added after a question asked in English. Without it, one Hindi line earlier in the transcript or history pulls answers into Hinglish. */
+export const ENGLISH_REPLY =
+  'LANGUAGE: this was asked in English. Write the whole answer in English, even if earlier lines or answers were in Hindi or Hinglish.'
+
+/** Sent when an answer stopped early (content filter, token limit) so another model can finish it. */
+export const CONTINUE_CUT_OFF =
+  'Your answer above was cut off. Continue it from exactly where it stops: start with the next word, do not repeat anything, no preamble. Put things in your own words rather than copying sentences from the notes.'
 
 /** Added after a question asked in Hindi or Hinglish, where the model sees it last. */
 export const HINGLISH_REPLY =

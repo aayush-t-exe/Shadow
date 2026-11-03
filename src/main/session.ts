@@ -10,11 +10,13 @@ import { getSettings } from './settings'
 import { loadInterviewContext } from './profiles'
 import { captureScreen, type Screenshot } from './screenshots'
 import { getModel, speedOptions } from './ai/providers'
-import { raceText } from './ai/race'
+import { raceText, type Finish } from './ai/race'
 import { getApiKey } from './secrets'
 import { ShadowError, toUserError } from './ai/errors'
 import {
   EXTRACT_PROMPT,
+  CONTINUE_CUT_OFF,
+  ENGLISH_REPLY,
   HINGLISH_REPLY,
   debugPrompt,
   debugUserText,
@@ -211,6 +213,10 @@ export async function ask(req: AskRequest): Promise<void> {
 
   let instructions: string
   let userText: string
+  // Which language to answer in, decided here from what was said and sent last, where the
+  // model weighs it most. A rule in the instructions alone loses to the transcript and
+  // history: one Hindi line anywhere pulled English questions into Hinglish answers.
+  let languageNote = ''
   let context: ModelMessage[]
   switch (mode) {
     case 'solve':
@@ -226,14 +232,13 @@ export async function ask(req: AskRequest): Promise<void> {
     case 'followup':
       instructions = followupPrompt(promptOptions, history.length > 0)
       userText = req.text!.trim()
-      if (spokeHindi(userText)) userText += `\n\n${HINGLISH_REPLY}`
+      languageNote = spokeHindi(userText) ? HINGLISH_REPLY : ENGLISH_REPLY
       context = history
       break
     case 'live':
       instructions = livePrompt(promptOptions)
       userText = `RECENT TRANSCRIPT (oldest → newest):\n${formatTranscript(recentTranscript()) || '(empty)'}\n\nQUESTION: ${liveQuestion}`
-      // A rule in the instructions alone loses to English examples and English history.
-      if (spokeHindi(liveQuestion!)) userText += `\n\n${HINGLISH_REPLY}`
+      languageNote = spokeHindi(liveQuestion!) ? HINGLISH_REPLY : ENGLISH_REPLY
       context = history
       break
   }
@@ -264,12 +269,13 @@ export async function ask(req: AskRequest): Promise<void> {
 
   try {
     let content: UserContent
+    const sentText = languageNote ? `${userText}\n\n${languageNote}` : userText
     if (shots.length > 0 && !model.vision) {
       broadcast(IPC.answerStatus, { id, status: 'Reading screenshots…' })
       const problem = await transcribeScreenshots(shots, settings, controller.signal)
-      content = [{ type: 'text', text: `${userText}\n\nThe screenshots, transcribed:\n\n${problem}` }]
+      content = [{ type: 'text', text: `${sentText}\n\nThe screenshots, transcribed:\n\n${problem}` }]
     } else {
-      content = [{ type: 'text', text: userText }, ...imageParts(shots)]
+      content = [{ type: 'text', text: sentText }, ...imageParts(shots)]
     }
     broadcast(IPC.answerStatus, { id, status: shots.length > 0 ? 'Reading screen…' : 'Thinking…' })
 
@@ -279,6 +285,8 @@ export async function ask(req: AskRequest): Promise<void> {
     const sendsImages = content.some((part) => typeof part !== 'string' && part.type === 'file')
     const backup = await usableBackup(settings, sendsImages)
 
+    let finish: Finish | undefined
+    let winner = model
     const stream = raceText({
       primary: model,
       backup,
@@ -300,9 +308,11 @@ export async function ask(req: AskRequest): Promise<void> {
           id,
           status: `${providerInfo(model.provider).label} is slow right now, also asking ${providerInfo(b.provider).label}…`
         }),
-      onWinner: (winner) => {
-        if (winner !== model) broadcast(IPC.answerStatus, { id, status: null, provider: winner.provider, modelId: winner.modelId })
-      }
+      onWinner: (w) => {
+        winner = w
+        if (w !== model) broadcast(IPC.answerStatus, { id, status: null, provider: w.provider, modelId: w.modelId })
+      },
+      onFinish: (f) => (finish = f)
     })
     for await (const text of stream) {
       firstTokenMs ??= Math.round(performance.now() - startedAt)
@@ -311,6 +321,43 @@ export async function ask(req: AskRequest): Promise<void> {
       if (copyWhenCodeCompletes && lastCodeBlockIsClosed(currentAnswer)) copyNow()
     }
     flush()
+
+    // A stream can end without an error but before the answer is done: Gemini stops replies
+    // that repeat their input word for word ("recitation", reported as content-filter), and
+    // long ones hit the token limit. Finish it instead of showing half an answer as complete.
+    if (!controller.signal.aborted && finish && finish.reason !== 'stop' && currentAnswer.trim()) {
+      console.log(`[ai] answer ended early: ${finish.reason}${finish.raw ? ` (${finish.raw})` : ''}`)
+      // The same model usually trips the same filter again, so prefer the other one.
+      const other = winner === model ? (backup ?? model) : model
+      broadcast(IPC.answerStatus, { id, status: 'The answer was cut off, finishing it…' })
+      try {
+        const rest = streamText({
+          model: await getModel(other, settings),
+          instructions,
+          messages: [...messages, { role: 'assistant', content: currentAnswer }, { role: 'user', content: CONTINUE_CUT_OFF }],
+          maxOutputTokens: 4096,
+          maxRetries: 1,
+          abortSignal: controller.signal,
+          providerOptions: speedOptions(other, purpose)
+        })
+        let first = true
+        for await (const text of rest.textStream) {
+          if (first && other !== winner) broadcast(IPC.answerStatus, { id, status: null, provider: other.provider, modelId: other.modelId })
+          else if (first) broadcast(IPC.answerStatus, { id, status: null })
+          first = false
+          currentAnswer += text
+          pending += text
+        }
+        if (first) broadcast(IPC.answerStatus, { id, status: null })
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.warn('[ai] could not finish the cut-off answer:', err instanceof Error ? err.message : err)
+          broadcast(IPC.answerStatus, { id, status: null })
+          broadcast(IPC.toast, 'The answer was cut off and could not be finished')
+        }
+      }
+      flush()
+    }
 
     if (controller.signal.aborted) {
       broadcast(IPC.answerDone, { id, aborted: true, firstTokenMs, totalMs: Math.round(performance.now() - startedAt) })
