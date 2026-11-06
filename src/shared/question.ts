@@ -23,9 +23,25 @@ const HINDI = /(क्या|क्यों|क्यूँ|कैसे|कब
 /** Hindi grammar words that hardly ever appear in English sentences. */
 const HINDI_GLUE = /\b(hai|hain|aur|ka|ki|ke|ko|mein|hota|hoti|hote|karte|karta|karo|nahi|nahin|toh|matlab|wala|wali)\b/gi
 
-/** Did the speaker use Hindi (in either script)? Answers should then come back in Hinglish. */
+/** Hindi grammar and question words in Devanagari, matched as whole words (names don't contain them). */
+const HINDI_WORDS = new Set([
+  'है', 'हैं', 'और', 'का', 'की', 'के', 'को', 'में', 'मैं', 'नहीं', 'तो', 'हो', 'था', 'थी', 'थे', 'भी', 'यह', 'ये', 'वो',
+  'कर', 'करो', 'करते', 'करता', 'होता', 'होती', 'क्या', 'क्यों', 'क्यूँ', 'कैसे', 'कैसा', 'कब', 'कहाँ', 'कहां', 'कौन',
+  'कितना', 'कितने', 'कितनी', 'बताओ', 'बताइए', 'बताइये', 'बताएं', 'समझाओ', 'समझाइए', 'लिखो', 'लिखिए'
+])
+
+/**
+ * Did the speaker use Hindi (in either script)? Answers should then come back in Hinglish.
+ * Speech-to-text writes Indian names in Devanagari even in English speech ("आयुष, tell me
+ * about yourself"), so Devanagari letters alone don't count: it needs Hindi words, or a
+ * sentence that is mostly Devanagari.
+ */
 export function spokeHindi(text: string): boolean {
-  return /[ऀ-ॿ]/.test(text) || HINGLISH.test(text) || (text.match(HINDI_GLUE)?.length ?? 0) >= 2
+  if (HINGLISH.test(text) || (text.match(HINDI_GLUE)?.length ?? 0) >= 2) return true
+  const tokens = text.split(/[\s,.?!।|"'()\-:;]+/).filter(Boolean)
+  const devanagari = tokens.filter((t) => /[ऀ-ॿ]/.test(t))
+  if (devanagari.some((t) => HINDI_WORDS.has(t))) return true
+  return devanagari.length >= 2 && devanagari.length * 2 >= tokens.length
 }
 
 /** Acknowledgements and filler that never need an answer (English and Hindi). */

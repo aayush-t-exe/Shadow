@@ -40,12 +40,23 @@ describe('spokeHindi', () => {
     'Graph aur SQL ka difference kya hai?',
     'rest और graph QL का difference क्या है?',
     'REST aur GraphQL mein difference hota hai na',
-    'linked list ko reverse karo'
+    'linked list ko reverse karo',
+    'आयुष, अपने बारे में बताओ',
+    'React में hooks क्यों use करते हैं'
   ])('hears Hindi in "%s"', (text) => {
     expect(spokeHindi(text)).toBe(true)
   })
 
-  it.each(['What is the difference between REST and GraphQL?', 'Explain it to me and give an example', 'how does Kafka handle a key'])(
+  it.each([
+    'What is the difference between REST and GraphQL?',
+    'Explain it to me and give an example',
+    'how does Kafka handle a key',
+    // Names come out of speech-to-text in Devanagari even when everything else is English.
+    'आयुष, tell me about yourself',
+    'So आयुष, how much exposure do you have in Node and Next.js?',
+    'Hi आयुष ठाकुर, can you walk me through your project?',
+    'Have you talked to कबीर about the design?'
+  ])(
     'leaves English alone: "%s"',
     (text) => {
       expect(spokeHindi(text)).toBe(false)
