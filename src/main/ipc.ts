@@ -6,13 +6,14 @@ import { keyUrlFor } from '@shared/providers'
 import type { KeyTestResult, ModelChoice } from '@shared/types'
 import { isTrustedUrl } from './trust'
 import { checkDeepgramCredit } from './live/credit'
+import { buyPack, checkoutAction, getCloudStatus, getPaywall, refreshCloud, showPaywall } from './cloud'
 import { getListenStatus, pushAudio, setCaptureWarning, startListening, stopListening } from './live/listen'
 import { getSettings, updateSettings } from './settings'
 import { deleteApiKey, keyStatus, setApiKey } from './secrets'
 import { getModel, listModels } from './ai/providers'
 import { toUserError } from './ai/errors'
 import { ask, cancelAnswer, copyLastCode, removeScreenshot, resetSession, takeScreenshot } from './session'
-import { broadcast, hideOverlay, openSettingsWindow, setInteractiveRegions } from './windows'
+import { broadcast, hideOverlay, openSettingsWindow, setInteractiveRegions, showOverlay } from './windows'
 
 // Only our own pages may call into main. A page that somehow navigated elsewhere
 // (or an injected frame) gets nothing back.
@@ -65,9 +66,20 @@ export function registerIpc() {
 
   handle(IPC.getSettings, () => getSettings())
   handle(IPC.setSettings, (patch: unknown) => {
+    const before = getSettings().source
     const next = updateSettings(patch)
     broadcast(IPC.settingsChanged, next)
+    if (next.source === 'cloud' && before !== 'cloud') void refreshCloud()
     return next
+  })
+  handle(IPC.getCloudStatus, () => getCloudStatus())
+  handle(IPC.refreshCloud, () => refreshCloud())
+  handle(IPC.getPaywall, () => getPaywall())
+  handle(IPC.buyPack, (packId: unknown) => buyPack(z.string().min(1).max(40).parse(packId)))
+  on(IPC.checkoutAction, (action: unknown) => checkoutAction(z.enum(['check', 'reopen', 'cancel']).parse(action)))
+  on(IPC.openPaywall, () => {
+    showOverlay()
+    showPaywall('topup')
   })
   handle(IPC.getKeyStatus, () => keyStatus())
   handle(IPC.setKey, async (id: unknown, key: unknown) => {

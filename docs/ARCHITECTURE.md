@@ -59,7 +59,7 @@ DPAPI protects keys from other Windows users and from copying the config file to
 
 1. The hotkey captures the monitor under the mouse at full physical resolution, correcting for Windows display scaling. Shadow hides itself for about 160 ms so it isn't in its own screenshot.
 2. Up to four screenshots queue up, for problems that need scrolling.
-3. The prompt is built from small blocks: base instructions, Python or Java rules, and length. It asks for fixed `##` sections (Problem, Approach, Code, Complexity, Edge Cases, Dry Run) instead of JSON, because markdown streams cleanly and even small local models follow it.
+3. The prompt is built from small blocks: base instructions, how to pick the code language (the one the user asks for, then the one the problem's starter code uses, then the user's preferred language), per-language rules, and length. It asks for fixed `##` sections (Problem, Approach, Code, Complexity, Edge Cases, Dry Run) instead of JSON, because markdown streams cleanly and even small local models follow it.
 4. If the chosen model can't read images, a vision model first turns the screenshots into text (a two-stage pipeline).
 5. Tokens stream through the [Vercel AI SDK](https://ai-sdk.dev) and are batched every 30 ms before crossing IPC, then rendered by [Streamdown](https://github.com/vercel/streamdown) with Shiki highlighting, which repairs half-finished markdown mid-stream.
 6. History is kept text-only, so follow-ups don't re-upload screenshots and waste free-tier quota.

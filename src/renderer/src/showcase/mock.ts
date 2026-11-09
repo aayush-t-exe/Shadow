@@ -6,7 +6,8 @@ import { providerInfo } from '@shared/providers'
 
 export const demoSettings: Settings = {
   schemaVersion: 1,
-  language: 'python',
+  source: 'keys',
+  language: 'auto',
   verbosity: 'concise',
   answerModel: providerInfo('gemini').defaultModel,
   visionModel: providerInfo('gemini').defaultModel,
@@ -16,6 +17,15 @@ export const demoSettings: Settings = {
   sttLanguage: 'multi',
   autoAnswer: true,
   answerFrom: 'anyone'
+}
+
+const cloudStatus = {
+  state: 'ready' as const,
+  deviceId: 'K7Q2-9MPX',
+  balance: 14,
+  creditsPerAnswer: 1,
+  creditsPerListenMinute: 3,
+  error: null
 }
 
 const noop = () => {}
@@ -33,7 +43,7 @@ const mock: ShadowAPI = {
   openSettings: noop,
   openKeyPage: noop,
   quit: noop,
-  startListening: async () => {},
+  startListening: async () => true,
   stopListening: noop,
   getListenStatus: async () => ({ state: 'off', startedAt: null, warning: null }),
   checkSpeechCredit: async () => ({ ok: true, usd: 187.4, hoursOfListening: 240 }),
@@ -46,6 +56,12 @@ const mock: ShadowAPI = {
   deleteKey: async () => ({}),
   testModel: async () => ({ ok: true, ms: 412 }),
   listModels: async () => ({ ok: true, models: [] }),
+  getCloudStatus: async () => cloudStatus,
+  refreshCloud: async () => cloudStatus,
+  getPaywall: async () => ({ balance: 0, creditsPerAnswer: 1, creditsPerListenMinute: 3, canBuy: true, packs: [], usage: { problems: 0, followups: 0, listenMinutes: 0, days: [], avgFirstTokenMs: null, purchased: false } }),
+  buyPack: async () => {},
+  checkoutAction: noop,
+  openPaywall: noop,
   onAnswerStart: listen,
   onAnswerStatus: listen,
   onAnswerChunk: listen,
@@ -58,7 +74,10 @@ const mock: ShadowAPI = {
   onKeysChanged: listen,
   onListenStatus: listen,
   onListenToggle: listen,
-  onTranscriptLine: listen
+  onTranscriptLine: listen,
+  onCloudStatus: listen,
+  onPurchaseStatus: listen,
+  onShowPaywall: listen
 }
 
 window.shadow = mock

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Check, ExternalLink, KeyRound, LoaderCircle, RefreshCw, X, Zap } from 'lucide-react'
+import { Check, Copy, ExternalLink, KeyRound, LoaderCircle, RefreshCw, X, Zap } from 'lucide-react'
 import '../styles/base.css'
 import '../overlay/overlay.css'
 import './settings.css'
 import { HOTKEYS } from '@shared/hotkeys'
 import { PROVIDERS, SPEECH_PROVIDERS, providerInfo } from '@shared/providers'
-import type { CreditResult, KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
+import { IS_OWNER_EDITION } from '@shared/edition'
+import { LANGUAGES } from '@shared/languages'
+import { CODE_LANGUAGES } from '@shared/types'
+import type { CloudStatus, CodeLanguage, CreditResult, KeyStatus, KeyTestResult, ModelChoice, ProviderId, SecretId, Settings } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 
@@ -210,6 +213,70 @@ function CreditRow() {
   )
 }
 
+/** Shadow Cloud: credits left, the Shadow ID (for support and buying credits), and a refresh. */
+function CloudCard() {
+  const [cloud, setCloud] = useState<CloudStatus | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    void window.shadow.refreshCloud().then(setCloud)
+    return window.shadow.onCloudStatus(setCloud)
+  }, [])
+
+  const refresh = async () => {
+    setRefreshing(true)
+    setCloud(await window.shadow.refreshCloud())
+    setRefreshing(false)
+  }
+  const copyId = async () => {
+    if (!cloud?.deviceId) return
+    try {
+      await navigator.clipboard.writeText(cloud.deviceId)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard blocked: the ID is selectable text, so it can still be copied by hand.
+    }
+  }
+
+  const balance = cloud?.balance
+  return (
+    <section className="card">
+      <h2>Shadow Cloud</h2>
+      <p className="hint">
+        Answers come from Shadow Cloud, so you don't need an API key. Each answer uses {cloud?.creditsPerAnswer ?? 1} credit, and
+        follow-up questions count as answers. Listening uses {cloud?.creditsPerListenMinute ?? 3} credits a minute.
+      </p>
+      <div className="row">
+        <span className="label">Credits left</span>
+        <span className="cloud-balance">{balance === null || balance === undefined ? '…' : balance}</span>
+        <button className="sbtn" onClick={refresh} disabled={refreshing}>
+          {refreshing ? <LoaderCircle className="animate-spin" /> : <RefreshCw />} Refresh
+        </button>
+        <button className="sbtn primary" onClick={() => window.shadow.openPaywall()}>
+          <Zap /> Add credits
+        </button>
+      </div>
+      <div className="row">
+        <span className="label">Your Shadow ID</span>
+        <span className="mono cloud-id">{cloud?.deviceId ?? '…'}</span>
+        {cloud?.deviceId && (
+          <button className="sbtn" onClick={copyId}>
+            {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy'}
+          </button>
+        )}
+      </div>
+      {cloud?.error && (
+        <div className="row">
+          <span className="label" />
+          <span className="result-bad">{cloud.error}</span>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function SettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [keys, setKeys] = useState<KeyStatus>({})
@@ -222,59 +289,92 @@ export function SettingsApp() {
 
   if (!settings) return null
   const save = async (patch: Partial<Settings>) => setSettings(await window.shadow.setSettings(patch))
+  const ownKeys = settings.source === 'keys'
 
   return (
     <div className="settings-page">
       <h1>
         <Logo size={26} /> Shadow Settings
       </h1>
-      <p className="lede">Changes save automatically. API keys are encrypted with Windows' built-in protection and never leave this computer except to call the provider.</p>
+      <p className="lede">
+        {ownKeys
+          ? "Changes save automatically. API keys are encrypted with Windows' built-in protection and never leave this computer except to call the provider."
+          : 'Changes save automatically.'}
+      </p>
 
-      <section className="card">
-        <h2>Answer model</h2>
-        <p className="hint">Writes the solutions. Gemini's free tier is the recommended start.</p>
-        <ModelPicker value={settings.answerModel} onChange={(answerModel) => save({ answerModel })} />
-      </section>
-
-      <section className="card">
-        <h2>Backup model</h2>
-        <p className="hint">
-          Free tiers are sometimes slow or busy. If the answer model hasn't started replying within 5 seconds, Shadow asks this
-          model too and shows whichever answers first. It also decides which spoken sentences are questions, which keeps your
-          answer model's free quota for answers. Groq's free tier is very fast and a good choice.
-        </p>
-        <div className="row">
-          <span className="label">Use a backup</span>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={!!settings.backupModel}
-              onChange={(e) => save({ backupModel: e.target.checked ? providerInfo('groq').defaultModel : null })}
-            />
-            Race a second model when the first one is slow
-          </label>
-        </div>
-        {settings.backupModel && <ModelPicker value={settings.backupModel} onChange={(backupModel) => save({ backupModel })} />}
-      </section>
-
-      {!settings.answerModel.vision && (
+      {IS_OWNER_EDITION && (
         <section className="card">
-          <h2>Screenshot reader</h2>
-          <p className="hint">Your answer model can't see images, so this vision model first turns screenshots into text.</p>
-          <ModelPicker value={settings.visionModel} onChange={(visionModel) => save({ visionModel })} />
+          <h2>Answer with</h2>
+          <p className="hint">Only your own build has this switch. The public installer always uses Shadow Cloud.</p>
+          <div className="row">
+            <span className="label">Source</span>
+            <span className="segmented">
+              {(
+                [
+                  ['cloud', 'Shadow Cloud'],
+                  ['keys', 'My own API keys']
+                ] as const
+              ).map(([value, text]) => (
+                <button key={value} aria-pressed={settings.source === value} onClick={() => save({ source: value })}>
+                  {text}
+                </button>
+              ))}
+            </span>
+          </div>
         </section>
       )}
 
-      <section className="card">
-        <h2>API keys</h2>
-        <p className="hint">You only need a key for the providers you actually use.</p>
-        {PROVIDERS.filter((p) => p.needsKey).map((p) => (
-          <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage={!!p.keyUrl} status={keys} onStatus={setKeys} />
-        ))}
-        {SPEECH_PROVIDERS.map((p) => (
-          <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage status={keys} onStatus={setKeys} />
-        ))}
-      </section>
+      {!ownKeys && <CloudCard />}
+
+      {ownKeys && (
+        <>
+          <section className="card">
+            <h2>Answer model</h2>
+            <p className="hint">Writes the solutions. Gemini's free tier is the recommended start.</p>
+            <ModelPicker value={settings.answerModel} onChange={(answerModel) => save({ answerModel })} />
+          </section>
+
+          <section className="card">
+            <h2>Backup model</h2>
+            <p className="hint">
+              Free tiers are sometimes slow or busy. If the answer model hasn't started replying within 5 seconds, Shadow asks this
+              model too and shows whichever answers first. It also decides which spoken sentences are questions, which keeps your
+              answer model's free quota for answers. Groq's free tier is very fast and a good choice.
+            </p>
+            <div className="row">
+              <span className="label">Use a backup</span>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!!settings.backupModel}
+                  onChange={(e) => save({ backupModel: e.target.checked ? providerInfo('groq').defaultModel : null })}
+                />
+                Race a second model when the first one is slow
+              </label>
+            </div>
+            {settings.backupModel && <ModelPicker value={settings.backupModel} onChange={(backupModel) => save({ backupModel })} />}
+          </section>
+
+          {!settings.answerModel.vision && (
+            <section className="card">
+              <h2>Screenshot reader</h2>
+              <p className="hint">Your answer model can't see images, so this vision model first turns screenshots into text.</p>
+              <ModelPicker value={settings.visionModel} onChange={(visionModel) => save({ visionModel })} />
+            </section>
+          )}
+
+          <section className="card">
+            <h2>API keys</h2>
+            <p className="hint">You only need a key for the providers you actually use.</p>
+            {PROVIDERS.filter((p) => p.needsKey).map((p) => (
+              <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage={!!p.keyUrl} status={keys} onStatus={setKeys} />
+            ))}
+            {SPEECH_PROVIDERS.map((p) => (
+              <KeyRow key={p.id} id={p.id} label={p.label} hasKeyPage status={keys} onStatus={setKeys} />
+            ))}
+          </section>
+        </>
+      )}
 
       <section className="card">
         <h2>Live listening</h2>
@@ -282,7 +382,7 @@ export function SettingsApp() {
           Transcribes your microphone (“You”) and your PC's sound (“Them”) with Deepgram. Use headphones on calls so the other
           person's voice doesn't leak into your mic.
         </p>
-        {keys.deepgram && <CreditRow />}
+        {ownKeys && keys.deepgram && <CreditRow />}
         <div className="row">
           <span className="label">Language</span>
           <span className="segmented">
@@ -328,15 +428,19 @@ export function SettingsApp() {
 
       <section className="card">
         <h2>Answers</h2>
+        <p className="hint">
+          Shadow answers in any programming language. It always uses the language you ask for or the one the problem's starter
+          code is in; your preferred language is only used when neither says.
+        </p>
         <div className="row">
-          <span className="label">Language</span>
-          <span className="segmented">
-            {(['python', 'java'] as const).map((language) => (
-              <button key={language} aria-pressed={settings.language === language} onClick={() => save({ language })}>
-                {language === 'python' ? 'Python' : 'Java'}
-              </button>
+          <span className="label">Preferred language</span>
+          <select className="select" value={settings.language} onChange={(e) => save({ language: e.target.value as CodeLanguage })}>
+            {CODE_LANGUAGES.map((language) => (
+              <option key={language} value={language}>
+                {LANGUAGES[language].label}
+              </option>
             ))}
-          </span>
+          </select>
         </div>
         <div className="row">
           <span className="label">Detail</span>
@@ -350,16 +454,18 @@ export function SettingsApp() {
         </div>
       </section>
 
-      <section className="card">
-        <h2>Local and custom servers</h2>
-        <UrlRow label="Ollama URL" value={settings.ollamaBaseURL} onSave={(ollamaBaseURL) => save({ ollamaBaseURL })} />
-        <UrlRow
-          label="Custom base URL"
-          value={settings.customBaseURL}
-          placeholder="https://host/v1"
-          onSave={(customBaseURL) => save({ customBaseURL })}
-        />
-      </section>
+      {ownKeys && (
+        <section className="card">
+          <h2>Local and custom servers</h2>
+          <UrlRow label="Ollama URL" value={settings.ollamaBaseURL} onSave={(ollamaBaseURL) => save({ ollamaBaseURL })} />
+          <UrlRow
+            label="Custom base URL"
+            value={settings.customBaseURL}
+            placeholder="https://host/v1"
+            onSave={(customBaseURL) => save({ customBaseURL })}
+          />
+        </section>
+      )}
 
       <section className="card">
         <h2>Hotkeys</h2>

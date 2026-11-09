@@ -1,0 +1,21 @@
+{
+  "name": "shadow-cloud",
+  "private": true,
+  "description": "Shadow Cloud: holds the AI keys, counts credits, and passes requests on for the Shadow app.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "db:local": "wrangler d1 migrations apply shadow-cloud --local",
+    "db:remote": "wrangler d1 migrations apply shadow-cloud --remote",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261109.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.159.0"
+  }
+}

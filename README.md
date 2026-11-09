@@ -7,7 +7,7 @@
 <p align="center">
   <b>One hotkey from stuck to understood.</b><br>
   A free, open-source study companion for Windows, built as a college project.<br>
-  It explains the coding problem on your screen step by step, in Python or Java,<br>
+  It explains the coding problem on your screen step by step, in any programming language,<br>
   and can transcribe a lecture or a practice video to explain the answer.
 </p>
 

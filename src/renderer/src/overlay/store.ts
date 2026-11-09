@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AnswerStartEvent, ErrorCode, KeyStatus, ScreenshotInfo, Settings } from '@shared/types'
+import type { AnswerStartEvent, CloudStatus, ErrorCode, KeyStatus, PaywallReason, PurchaseStatus, ScreenshotInfo, Settings } from '@shared/types'
 import type { AudioLevels, ListenStatus, TranscriptLine } from '@shared/live'
 
 export interface Turn extends AnswerStartEvent {
@@ -24,8 +24,16 @@ interface OverlayState {
   transcript: TranscriptLine[]
   /** null until loaded; used to show the first-run welcome card. */
   keys: KeyStatus | null
+  /** Shadow Cloud credits and Shadow ID; null until loaded. */
+  cloud: CloudStatus | null
+  /** The buy-credits flow, as main reports it. */
+  purchase: PurchaseStatus
+  /** A paywall opened outside an answer (Listen ran out, "Add credits", the low-credits chip). */
+  paywall: PaywallReason | null
   openPanel: () => void
   closePanel: () => void
+  openPaywall: (reason: PaywallReason) => void
+  closePaywall: () => void
 }
 
 const MAX_TRANSCRIPT_LINES = 200
@@ -40,8 +48,13 @@ export const useOverlay = create<OverlayState>()((set) => ({
   levels: { mic: 0, system: 0 },
   transcript: [],
   keys: null,
+  cloud: null,
+  purchase: { state: 'idle' },
+  paywall: null,
   openPanel: () => set({ panelOpen: true }),
-  closePanel: () => set({ panelOpen: false })
+  closePanel: () => set({ panelOpen: false }),
+  openPaywall: (reason) => set({ paywall: reason, panelOpen: true }),
+  closePaywall: () => set({ paywall: null })
 }))
 
 const TOAST_MS = 2400
@@ -90,11 +103,16 @@ export function connectToMain() {
     updateTurn(id, () => ({ streaming: false, status: null, error: { code, message } }))
   )
   api.onScreenshots((screenshots) => useOverlay.setState({ screenshots }))
-  api.onSessionReset(() => useOverlay.setState({ turns: [], transcript: [], panelOpen: false }))
+  api.onSessionReset(() => useOverlay.setState({ turns: [], transcript: [], panelOpen: false, paywall: null }))
   api.onToast(showToast)
 
   void api.getKeyStatus().then((keys) => useOverlay.setState({ keys }))
   api.onKeysChanged((keys) => useOverlay.setState({ keys }))
+
+  void api.getCloudStatus().then((cloud) => useOverlay.setState({ cloud }))
+  api.onCloudStatus((cloud) => useOverlay.setState({ cloud }))
+  api.onPurchaseStatus((purchase) => useOverlay.setState({ purchase }))
+  api.onShowPaywall((reason) => useOverlay.getState().openPaywall(reason))
 
   void api.getListenStatus().then((listen) => useOverlay.setState({ listen }))
   api.onListenStatus((listen) => useOverlay.setState({ listen }))

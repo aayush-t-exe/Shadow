@@ -60,6 +60,7 @@ export const HINGLISH_ANSWER = `**In short:** React Native ek framework hai jiss
 const base = {
   provider: 'gemini' as const,
   modelId: 'gemini-3.5-flash-lite',
+  cloud: false,
   status: null,
   aborted: false,
   error: null

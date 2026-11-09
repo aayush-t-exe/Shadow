@@ -31,10 +31,16 @@ export class DeepgramFlux {
   private inTurn = false
   private turnEnded: (() => void) | null = null
 
+  /**
+   * @param authorization the full Authorization header: `Token <api key>` for the user's own key,
+   *   or `Bearer <temporary token>` from Shadow Cloud.
+   * @param rejectedMessage what to say if Deepgram refuses it.
+   */
   constructor(
-    private apiKey: string,
+    private authorization: string,
     private language: 'en' | 'multi',
-    private handlers: FluxHandlers
+    private handlers: FluxHandlers,
+    private rejectedMessage = 'Deepgram rejected the API key. Check it in Settings.'
   ) {}
 
   async connect(): Promise<void> {
@@ -52,7 +58,7 @@ export class DeepgramFlux {
       params.append('language_hint', 'hi')
     }
 
-    const ws = new WebSocket(`${FLUX_URL}?${params}`, { headers: { Authorization: `Token ${this.apiKey}` } })
+    const ws = new WebSocket(`${FLUX_URL}?${params}`, { headers: { Authorization: this.authorization } })
     this.ws = ws
 
     await new Promise<void>((resolve, reject) => {
@@ -71,7 +77,7 @@ export class DeepgramFlux {
         reject(
           new Error(
             res.statusCode === 401 || res.statusCode === 403
-              ? 'Deepgram rejected the API key. Check it in Settings.'
+              ? this.rejectedMessage
               : `Deepgram refused the connection (HTTP ${res.statusCode}).`
           )
         )

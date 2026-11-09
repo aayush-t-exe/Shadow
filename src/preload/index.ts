@@ -39,6 +39,12 @@ const api: ShadowAPI = {
   deleteKey: (provider) => ipcRenderer.invoke(IPC.deleteKey, provider),
   testModel: (choice) => ipcRenderer.invoke(IPC.testModel, choice),
   listModels: (provider) => ipcRenderer.invoke(IPC.listModels, provider),
+  getCloudStatus: () => ipcRenderer.invoke(IPC.getCloudStatus),
+  refreshCloud: () => ipcRenderer.invoke(IPC.refreshCloud),
+  getPaywall: () => ipcRenderer.invoke(IPC.getPaywall),
+  buyPack: (packId) => ipcRenderer.invoke(IPC.buyPack, packId),
+  checkoutAction: (action) => ipcRenderer.send(IPC.checkoutAction, action),
+  openPaywall: () => ipcRenderer.send(IPC.openPaywall),
 
   onAnswerStart: listener(IPC.answerStart),
   onAnswerStatus: listener(IPC.answerStatus),
@@ -52,7 +58,10 @@ const api: ShadowAPI = {
   onKeysChanged: listener(IPC.keysChanged),
   onListenStatus: listener(IPC.listenStatus),
   onListenToggle: listener(IPC.listenToggle),
-  onTranscriptLine: listener(IPC.transcriptLine)
+  onTranscriptLine: listener(IPC.transcriptLine),
+  onCloudStatus: listener(IPC.cloudStatus),
+  onPurchaseStatus: listener(IPC.purchaseStatus),
+  onShowPaywall: listener(IPC.showPaywall)
 }
 
 contextBridge.exposeInMainWorld('shadow', api)

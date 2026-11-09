@@ -176,3 +176,16 @@
 .hotkeys td:last-child {
   text-align: right;
 }
+
+/* Shadow Cloud card */
+.cloud-balance {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+}
+.cloud-id {
+  user-select: text;
+  letter-spacing: 0.04em;
+  min-width: 96px;
+}

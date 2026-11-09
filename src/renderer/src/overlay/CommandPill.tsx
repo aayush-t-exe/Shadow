@@ -1,6 +1,5 @@
 import { Camera, EyeOff, GripVertical, MessageSquare, Settings, Sparkles } from 'lucide-react'
 import { hotkeyFor, keycaps, type HotkeyAction } from '@shared/hotkeys'
-import type { CodeLanguage } from '@shared/types'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
 import { reportError as report, useOverlay } from './store'
@@ -9,10 +8,7 @@ import { ListenToggle } from './ListenToggle'
 const tip = (label: string, action: HotkeyAction) => `${label}  (${keycaps(hotkeyFor(action).accelerator).join('+')})`
 
 export function CommandPill() {
-  const language = useOverlay((s) => s.settings?.language ?? 'python')
   const openPanel = useOverlay((s) => s.openPanel)
-
-  const setLanguage = (lang: CodeLanguage) => void window.shadow.setSettings({ language: lang })
 
   return (
     <div className="pill glass" data-interactive>
@@ -33,16 +29,6 @@ export function CommandPill() {
         <MessageSquare /> Ask
       </button>
       <ListenToggle />
-
-      <span className="divider" />
-
-      <span className="segmented" role="group" aria-label="Answer language">
-        {(['python', 'java'] as const).map((lang) => (
-          <button key={lang} aria-pressed={language === lang} onClick={() => setLanguage(lang)}>
-            {lang === 'python' ? 'Python' : 'Java'}
-          </button>
-        ))}
-      </span>
 
       <span className="divider" />
 

@@ -6,6 +6,9 @@ import { registerIpc } from './ipc'
 import { registerHotkeys } from './hotkeys'
 import { createTray } from './tray'
 import { broadcast, createOverlay, showOverlay } from './windows'
+import { getSettings } from './settings'
+import { onPurchased, refreshCloud } from './cloud'
+import { resumePending } from './session'
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -25,6 +28,10 @@ if (!app.requestSingleInstanceLock()) {
     startAutoAnswer()
     const overlay = createOverlay()
     createTray()
+    // Shadow Cloud: register this install on first launch (no sign-up) and fetch the credits.
+    if (getSettings().source === 'cloud') void refreshCloud()
+    // When a payment lands, answer the question that hit the paywall.
+    onPurchased(resumePending)
 
     const taken = registerHotkeys()
     if (taken.length > 0) {

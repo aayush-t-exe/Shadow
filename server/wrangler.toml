@@ -1,0 +1,26 @@
+name = "shadow-cloud"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# Secrets are NOT set here. Locally they live in .dev.vars (copy .dev.vars.example);
+# online, set each one with `npx wrangler secret put NAME`:
+#   GEMINI_API_KEY, GROQ_API_KEY, DEEPGRAM_API_KEY, ADMIN_SECRET
+
+[vars]
+# Every number here can be changed and redeployed without shipping a new app.
+FREE_CREDITS = "20"
+CREDITS_PER_ANSWER = "1"
+CREDITS_PER_LISTEN_MINUTE = "3"
+# Hard stop for the whole server: once a day's AI + speech cost passes this, requests get "busy".
+DAILY_CAP_USD = "2"
+REGISTRATIONS_PER_IP_PER_DAY = "5"
+CLASSIFY_PER_HOUR = "120"
+ANSWER_MODEL = "gemini-3.5-flash-lite"
+BACKUP_MODEL = "qwen/qwen3.8-27b"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shadow-cloud"
+# Replace with the id printed by `npx wrangler d1 create shadow-cloud` before deploying.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

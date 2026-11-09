@@ -245,7 +245,7 @@ function Scene({ id }: { id: SceneId }) {
             <p>One hotkey from stuck to understood.</p>
             <div className="chips">
               <span>Free &amp; open source</span>
-              <span>Python · Java</span>
+              <span>Any language</span>
             </div>
           </div>
           <div className="social-shot">

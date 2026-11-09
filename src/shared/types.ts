@@ -2,7 +2,12 @@
 // Nothing in here may import from Electron or Node.
 
 export type ProviderId = 'gemini' | 'groq' | 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'custom'
-export type CodeLanguage = 'python' | 'java'
+/**
+ * The user's preferred coding language. It's only a default: Shadow always answers in the
+ * language the user asks for or the problem's starter code uses. "auto" = match the problem.
+ */
+export const CODE_LANGUAGES = ['auto', 'python', 'java', 'cpp', 'c', 'javascript', 'typescript', 'csharp', 'go', 'kotlin', 'rust'] as const
+export type CodeLanguage = (typeof CODE_LANGUAGES)[number]
 export type Verbosity = 'concise' | 'detailed'
 
 export interface ModelChoice {
@@ -12,8 +17,15 @@ export interface ModelChoice {
   vision: boolean
 }
 
+/**
+ * Where answers come from. "cloud" = Shadow Cloud (no key, uses credits). "keys" = the
+ * user's own API keys; only the owner edition offers it (src/shared/edition.ts).
+ */
+export type AnswerSource = 'cloud' | 'keys'
+
 export interface Settings {
   schemaVersion: 1
+  source: AnswerSource
   language: CodeLanguage
   verbosity: Verbosity
   answerModel: ModelChoice
@@ -62,7 +74,72 @@ export type ErrorCode =
   | 'NO_SCREENSHOTS'
   | 'NETWORK'
   | 'OLLAMA_DOWN'
+  /** Shadow Cloud: no credits left. */
+  | 'NO_CREDITS'
+  /** Shadow Cloud: unreachable, busy, or refused the request. */
+  | 'CLOUD'
   | 'UNKNOWN'
+
+/** A credit pack as the paywall shows it (prices come from the server). */
+export interface PaywallPack {
+  id: string
+  credits: number
+  /** Price including GST, in paise. */
+  pricePaise: number
+  /** How long the pack lasts if spent only on Listen. */
+  listenMinutes: number
+  default?: boolean
+}
+
+export interface PaywallInfo {
+  balance: number
+  creditsPerAnswer: number
+  creditsPerListenMinute: number
+  /** False until payments are set up on the server. */
+  canBuy: boolean
+  packs: PaywallPack[]
+  usage: {
+    problems: number
+    followups: number
+    listenMinutes: number
+    /** The last 7 days, oldest first. */
+    days: { day: string; answers: number }[]
+    /** Average time to the first word of an answer, measured on this PC. */
+    avgFirstTokenMs: number | null
+    /** Has this install bought credits before? */
+    purchased: boolean
+  }
+}
+
+/** Why the paywall opened: an answer or Listen needed credits, or the user chose to top up. */
+export type PaywallReason = 'answer' | 'listen' | 'topup'
+
+export interface PurchaseStatus {
+  state: 'idle' | 'opening' | 'waiting' | 'paid' | 'error'
+  packId?: string
+  orderId?: string
+  credits?: number
+  pricePaise?: number
+  /** The checkout page (so it can be reopened). */
+  url?: string
+  /** Still waiting after 10 minutes. */
+  slow?: boolean
+  /** A saved problem is being answered now that the payment arrived. */
+  resuming?: boolean
+  message?: string
+}
+
+/** What the app knows about this install's Shadow Cloud account. */
+export interface CloudStatus {
+  /** connecting = not registered yet; offline = the server couldn't be reached. */
+  state: 'connecting' | 'ready' | 'offline'
+  /** The readable "Shadow ID" (e.g. K7Q2-9MPX), for support and manual credit grants. */
+  deviceId: string | null
+  balance: number | null
+  creditsPerAnswer: number
+  creditsPerListenMinute: number
+  error: string | null
+}
 
 // ---- events pushed from main to the overlay ----
 
@@ -74,6 +151,8 @@ export interface AnswerStartEvent {
   screenshotCount: number
   provider: ProviderId
   modelId: string
+  /** Answered through Shadow Cloud (the header shows credits instead of the provider). */
+  cloud: boolean
 }
 /** Progress text shown before the first token, e.g. "Reading screenshots…". */
 export interface AnswerStatusEvent {
