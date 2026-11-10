@@ -534,17 +534,21 @@ function InterviewPrep({ activeProfile, onActivate }: { activeProfile: string | 
       </div>
       <div className="row">
         <span className="label" />
-        <button className="sbtn primary" disabled={!company.trim() || researching} onClick={research}>
-          {researching ? <LoaderCircle className="animate-spin" /> : <Globe />} {researching ? 'Researching…' : 'Research with Gemini'}
-        </button>
-        <button className="sbtn" disabled={!company.trim() || researching} onClick={createBlank}>
-          <Plus /> Blank
+        {/* Research calls Gemini with the user's own key, which only the owner edition has. */}
+        {IS_OWNER_EDITION && (
+          <button className="sbtn primary" disabled={!company.trim() || researching} onClick={research}>
+            {researching ? <LoaderCircle className="animate-spin" /> : <Globe />} {researching ? 'Researching…' : 'Research with Gemini'}
+          </button>
+        )}
+        <button className={IS_OWNER_EDITION ? 'sbtn' : 'sbtn primary'} disabled={!company.trim() || researching} onClick={createBlank}>
+          <Plus /> {IS_OWNER_EDITION ? 'Blank' : 'Create brief'}
         </button>
         {error && <span className="result-bad">{error}</span>}
       </div>
       <p className="hint" style={{ marginTop: 8 }}>
-        Research uses Gemini with Google Search (your free Gemini key) and takes about half a minute. You can also paste a job
-        description into a blank brief, or drop any markdown file into the folder.
+        {IS_OWNER_EDITION
+          ? 'Research uses Gemini with Google Search (your free Gemini key) and takes about half a minute. You can also paste a job description into a blank brief, or drop any markdown file into the folder.'
+          : 'Paste the job description, the interview rounds and your notes into the brief, or drop any markdown file into the folder.'}
       </p>
 
       {activeProfile && profiles.some((p) => p.id === activeProfile) && (
