@@ -2,10 +2,6 @@ import { app, BrowserWindow, screen, shell } from 'electron'
 import { join } from 'node:path'
 import { pointInRects, type Rect } from '@shared/geometry'
 
-// One transparent, always-on-top window holds the pill and every panel. Most of it
-// is empty, so it ignores the mouse by default (clicks fall through to the app
-// underneath) and the renderer turns mouse capture on only while the pointer is
-// over a visible control.
 const OVERLAY_WIDTH = 960
 const OVERLAY_HEIGHT = 780
 const TOP_OFFSET = 12
@@ -24,10 +20,8 @@ function loadPage(win: BrowserWindow, page: 'overlay' | 'settings') {
   else void win.loadFile(join(import.meta.dirname, `../renderer/${page}.html`))
 }
 
-/** Pages may never navigate away or spawn windows; https links open in the real browser. */
 function harden(win: BrowserWindow) {
   if (!app.isPackaged) {
-    // Surface renderer warnings and crashes in the terminal during development.
     win.webContents.on('console-message', ({ level, message }) => {
       if (level === 'warning' || level === 'error') console.log(`[renderer:${level}] ${message}`)
     })
@@ -48,8 +42,19 @@ const secureWebPreferences = () => ({
   spellcheck: false
 })
 
+function protectFromCapture(win: BrowserWindow) {
+  if (process.platform !== 'win32' || win.isDestroyed()) return
+
+  try {
+    win.setContentProtection(true)
+  } catch (err) {
+    console.warn('[windows] failed to enable capture protection', err)
+  }
+}
+
 export function createOverlay(): BrowserWindow {
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+
   overlay = new BrowserWindow({
     width: OVERLAY_WIDTH,
     height: OVERLAY_HEIGHT,
@@ -69,12 +74,18 @@ export function createOverlay(): BrowserWindow {
     title: 'Shadow',
     webPreferences: { ...secureWebPreferences(), backgroundThrottling: false }
   })
+
+  protectFromCapture(overlay)
+
   overlay.setAlwaysOnTop(true, 'screen-saver')
   overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   overlay.setIgnoreMouseEvents(true, { forward: true })
-  overlay.once('ready-to-show', () => overlay?.showInactive())
-  // Closing the overlay (Ctrl+W, Alt+F4 while it has focus) only hides it; quitting from
-  // the tray is the one way to exit.
+
+  overlay.once('ready-to-show', () => {
+    overlay?.showInactive()
+    if (overlay) protectFromCapture(overlay)
+  })
+
   overlay.on('close', (e) => {
     if (quitting) return
     e.preventDefault()
@@ -92,9 +103,6 @@ export function createOverlay(): BrowserWindow {
 
 export const getOverlay = () => overlay
 
-// ---- click-through ----
-// The renderer reports where its visible controls are; we poll the real cursor and
-// capture the mouse only while it's over one of them.
 const CURSOR_POLL_MS = 40
 let interactiveRegions: Rect[] = []
 let capturing = false
@@ -115,9 +123,10 @@ function updateMouseCapture() {
 
 export function showOverlay() {
   if (!overlay) return
+
   overlay.showInactive()
-  // Windows can drop the topmost flag after Win+D or a full-screen app; re-assert it.
   overlay.setAlwaysOnTop(true, 'screen-saver')
+  protectFromCapture(overlay)
 }
 
 export function hideOverlay() {
@@ -133,7 +142,6 @@ export function moveOverlay(dx: number, dy: number) {
   if (!overlay) return
   const bounds = overlay.getBounds()
   const { workArea } = screen.getDisplayMatching(bounds)
-  // Keep at least 120px of the window on screen so the pill can't be lost off an edge.
   const x = Math.min(Math.max(bounds.x + dx * MOVE_STEP, workArea.x - bounds.width + 120), workArea.x + workArea.width - 120)
   const y = Math.min(Math.max(bounds.y + dy * MOVE_STEP, workArea.y), workArea.y + workArea.height - 60)
   overlay.setPosition(Math.round(x), Math.round(y))
