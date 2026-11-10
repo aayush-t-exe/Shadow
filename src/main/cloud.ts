@@ -285,6 +285,12 @@ async function pollOnce(): Promise<void> {
       setPurchase({ ...purchase, state: 'paid', resuming })
       return
     }
+    if (order.status === 'failed') {
+      // Razorpay says the link expired or was cancelled without a payment.
+      stopPolling()
+      setPurchase({ state: 'error', packId: purchase.packId, message: 'The payment page expired before a payment went through. No money was taken. Try again.' })
+      return
+    }
   } catch {
     // Offline for a moment: keep waiting.
   }

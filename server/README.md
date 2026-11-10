@@ -57,13 +57,28 @@ The paywall shows the packs from `PACKS` (default: 50 credits ₹49, **120 credi
 ₹249; prices include GST, in paise). To change them, set `PACKS` in `[vars]`, e.g.
 `PACKS = '[{"id":"small","credits":50,"pricePaise":4900},{"id":"regular","credits":120,"pricePaise":9900,"default":true}]'`.
 
-- `CHECKOUT_MODE=test` (only in `.dev.vars`, never online) serves a fake checkout page, so the whole
-  buy flow works on your PC with no real money: paywall → "Finish paying in your browser" → pay on the
-  test page → the orb lights up and the saved question is answered.
+- `CHECKOUT_MODE=razorpay` + `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`: real payments through
+  Razorpay Orders + Checkout. "Add credits" opens Shadow's own page (`/pay/:order`) on your server,
+  which opens Razorpay's window (UPI, cards, netbanking) with the Shadow name and logo.
+  With `rzp_test_` keys it's test money only.
+- `CHECKOUT_MODE=test` (only in `.dev.vars`, never online) is a fake checkout page with no Razorpay,
+  used by the automated tests.
 - With `CHECKOUT_MODE` unset (the default online), the paywall shows but buying is switched off.
-- Razorpay (step 4) plugs into `src/checkout.ts`: `createCheckout()` makes a Razorpay payment link
-  instead of the test page, and the Razorpay webhook calls `fulfil()`. Credits are added only there,
-  exactly once per order.
+
+How a payment is confirmed: nothing the browser says is trusted on its own. Credits are added (by
+`fulfil()`, exactly once per order) only when one of these is true:
+1. the checkout window's receipt has a valid signature made with your key secret
+   (`HMAC-SHA256(order_id|payment_id)`), or
+2. Razorpay itself says the order is paid (checked every time the app polls), or
+3. Razorpay's `order.paid` webhook arrives signed with `RAZORPAY_WEBHOOK_SECRET`.
+
+Try it on your PC: `node scripts/razorpay-check.mjs` creates a real test order, prints the payment
+page, and waits for you to pay (test mode: Netbanking → any bank → Success).
+
+**Going live:** after Razorpay approves your KYC, generate **live** keys and set them online with
+`npx wrangler secret put RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`. In Razorpay → Webhooks add
+`https://<your server>/v1/razorpay/webhook` for the `order.paid` event, with a secret you also set
+as `RAZORPAY_WEBHOOK_SECRET`. Never put live keys in chat or in git.
 
 ## See what answers really cost
 

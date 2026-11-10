@@ -9,14 +9,17 @@
 //   POST /v1/listen/start|token|tick|stop
 //   GET  /v1/paywall           packs + what this install already got from Shadow
 //   POST /v1/checkout          start buying a pack; GET /v1/checkout/:id polls it
+//   GET  /pay/:id              Shadow's payment page (opens Razorpay checkout); POST /pay/:id/verify
+//   POST /v1/razorpay/webhook  Razorpay's signed order.paid message
 //   POST /v1/admin/grant       give a device credits (you, by hand)
 //   GET  /v1/admin/stats       what answers really cost
 
 import { config, type Config, type Env } from './config'
+import { LOGO_PNG_BASE64 } from './logo'
 import { credit, deviceFor, newDeviceId, newToken, now, safeEqual, sha256, today, type Device } from './db'
 import { matchProxy, providerError, proxy } from './proxy'
 import { refreshListenToken, startListen, stopListen, tickListen } from './listen'
-import { checkoutStatus, createCheckout, paywall, testPayPage } from './checkout'
+import { checkoutStatus, createCheckout, paywall, razorpayPayPage, razorpayWebhook, testPayPage, verifyRazorpayPayment } from './checkout'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 
@@ -38,11 +41,19 @@ async function route(request: Request, url: URL, env: Env, cfg: Config, ctx: Exe
   const method = request.method
 
   if (method === 'GET' && pathname === '/') return new Response('Shadow Cloud is running.')
+  if (method === 'GET' && pathname === '/logo.png') {
+    const bytes = Uint8Array.from(atob(LOGO_PNG_BASE64), (c) => c.charCodeAt(0))
+    return new Response(bytes, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } })
+  }
   if (method === 'GET' && pathname === '/v1/config') return json(publicConfig(cfg))
   if (method === 'POST' && pathname === '/v1/devices') return register(request, env, cfg)
   if (pathname.startsWith('/v1/admin/')) return admin(request, url, env)
   const testPay = pathname.match(/^\/pay\/test\/(ord_[a-z0-9]+)$/)
   if (testPay) return testPayPage(env, cfg, request, testPay[1])
+  const payPage = pathname.match(/^\/pay\/(ord_[a-z0-9]+)(\/verify)?$/)
+  if (payPage && method === 'GET' && !payPage[2]) return razorpayPayPage(env, cfg, payPage[1], url.origin)
+  if (payPage && method === 'POST' && payPage[2]) return verifyRazorpayPayment(env, cfg, request, payPage[1])
+  if (method === 'POST' && pathname === '/v1/razorpay/webhook') return razorpayWebhook(env, request)
 
   // Everything below needs a device token.
   const provider = method === 'POST' ? matchProxy(pathname) : null
@@ -58,7 +69,7 @@ async function route(request: Request, url: URL, env: Env, cfg: Config, ctx: Exe
   if (method === 'GET' && pathname === '/v1/paywall') return paywall(env, cfg, device)
   if (method === 'POST' && pathname === '/v1/checkout') return createCheckout(env, cfg, device, request, url)
   const order = method === 'GET' ? pathname.match(/^\/v1\/checkout\/(ord_[a-z0-9]+)$/) : null
-  if (order) return checkoutStatus(env, device, order[1])
+  if (order) return checkoutStatus(env, cfg, device, order[1])
   if (method === 'POST' && pathname === '/v1/listen/start') return startListen(env, cfg, device)
   if (method === 'POST' && pathname === '/v1/listen/token') return refreshListenToken(env, cfg, device, request)
   if (method === 'POST' && pathname === '/v1/listen/tick') return tickListen(env, cfg, device, request)

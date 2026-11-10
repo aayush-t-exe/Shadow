@@ -19,8 +19,13 @@ export interface Env {
   DEEPGRAM_USD_PER_STREAM_MINUTE?: string
   /** JSON list of credit packs; see DEFAULT_PACKS. */
   PACKS?: string
-  /** "test" = a fake checkout page for development. Unset = payments off. (Razorpay comes next.) */
+  /** "razorpay" = real checkout (test or live keys). "test" = a fake page for development. Unset = payments off. */
   CHECKOUT_MODE?: string
+  RAZORPAY_KEY_ID?: string
+  RAZORPAY_KEY_SECRET?: string
+  /** Set the same value in Razorpay > Webhooks for the payment_link.paid event. */
+  RAZORPAY_WEBHOOK_SECRET?: string
+  RAZORPAY_BASE?: string
   // upstream addresses; only changed by tests, which point them at a fake server
   GEMINI_BASE?: string
   GROQ_BASE?: string
@@ -105,13 +110,19 @@ export function config(env: Env) {
     prices: prices(env.PRICES),
     deepgramMicroUsdPerStreamMinute: Math.round(num(env.DEEPGRAM_USD_PER_STREAM_MINUTE, 0.0077) * 1_000_000),
     packs: packs(env.PACKS),
-    checkoutMode: env.CHECKOUT_MODE === 'test' ? ('test' as const) : null,
+    checkoutMode:
+      env.CHECKOUT_MODE === 'razorpay' && env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
+        ? ('razorpay' as const)
+        : env.CHECKOUT_MODE === 'test'
+          ? ('test' as const)
+          : null,
     /** Listen runs two streams at once: the mic ("You") and the PC's sound ("Them"). */
     listenStreams: 2,
     bases: {
       gemini: env.GEMINI_BASE || 'https://generativelanguage.googleapis.com',
       groq: env.GROQ_BASE || 'https://api.groq.com',
-      deepgram: env.DEEPGRAM_BASE || 'https://api.deepgram.com'
+      deepgram: env.DEEPGRAM_BASE || 'https://api.deepgram.com',
+      razorpay: env.RAZORPAY_BASE || 'https://api.razorpay.com'
     }
   }
 }

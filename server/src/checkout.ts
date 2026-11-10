@@ -6,6 +6,7 @@
 
 import type { Config, Env, Pack } from './config'
 import { balanceOf, credit, now, type Device } from './db'
+import { createOrder, fetchOrder, paidPaymentId, validPaymentSignature, validWebhook } from './razorpay'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
 
@@ -59,15 +60,154 @@ export async function createCheckout(env: Env, cfg: Config, device: Device, requ
   )
     .bind(id, device.id, pack.id, pack.credits, pack.pricePaise, cfg.checkoutMode, now())
     .run()
+
+  if (cfg.checkoutMode === 'razorpay') {
+    try {
+      const rzp = await createOrder(env, cfg, { id, deviceId: device.id, credits: pack.credits, amountPaise: pack.pricePaise })
+      await env.DB.prepare('UPDATE orders SET link_id = ? WHERE id = ?').bind(rzp.id, id).run()
+      return json({ orderId: id, url: `${url.origin}/pay/${id}`, credits: pack.credits, pricePaise: pack.pricePaise })
+    } catch (err) {
+      await env.DB.prepare(`UPDATE orders SET status = 'failed' WHERE id = ?`).bind(id).run()
+      console.error('[razorpay] create order failed', err)
+      return json({ error: "Couldn't open the payment page. Please try again." }, 502)
+    }
+  }
   return json({ orderId: id, url: `${url.origin}/pay/test/${id}`, credits: pack.credits, pricePaise: pack.pricePaise })
 }
 
-export async function checkoutStatus(env: Env, device: Device, orderId: string): Promise<Response> {
-  const order = await env.DB.prepare('SELECT status, credits FROM orders WHERE id = ? AND device_id = ?')
+interface OrderRow {
+  id: string
+  status: string
+  credits: number
+  amount_paise: number
+  provider: string
+  /** The Razorpay order id (order_...). */
+  link_id: string | null
+}
+
+const ORDER_COLUMNS = 'id, status, credits, amount_paise, provider, link_id'
+
+/** Asks Razorpay whether a pending order is paid; credits it if so. Returns the order's status now. */
+async function syncWithRazorpay(env: Env, cfg: Config, order: OrderRow): Promise<string> {
+  if (order.status !== 'pending' || order.provider !== 'razorpay' || !order.link_id || cfg.checkoutMode !== 'razorpay') return order.status
+  try {
+    const rzp = await fetchOrder(env, cfg, order.link_id)
+    if (rzp.status === 'paid' && rzp.amount_paid >= order.amount_paise) {
+      await fulfil(env, order.id, await paidPaymentId(env, cfg, order.link_id))
+      return 'paid'
+    }
+  } catch (err) {
+    console.error('[razorpay] status check failed', err) // try again on the next poll
+  }
+  return 'pending'
+}
+
+export async function checkoutStatus(env: Env, cfg: Config, device: Device, orderId: string): Promise<Response> {
+  const order = await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ? AND device_id = ?`)
     .bind(orderId, device.id)
-    .first<{ status: string; credits: number }>()
+    .first<OrderRow>()
   if (!order) return json({ error: 'Unknown order.' }, 404)
-  return json({ status: order.status, credits: order.credits, balance: await balanceOf(env, device.id) })
+  const status = await syncWithRazorpay(env, cfg, order)
+  return json({ status, credits: order.credits, balance: await balanceOf(env, device.id) })
+}
+
+// ---------- the payment page (CHECKOUT_MODE=razorpay) ----------
+
+const rupees = (paise: number) => `₹${(paise / 100).toLocaleString('en-IN')}`
+
+/**
+ * Shadow's own payment page: shows what's being bought, then opens Razorpay's checkout
+ * window for the order. After paying, the window hands this page a signed receipt, which
+ * the page posts to /pay/:id/verify.
+ */
+export async function razorpayPayPage(env: Env, cfg: Config, orderId: string, origin: string): Promise<Response> {
+  if (cfg.checkoutMode !== 'razorpay') return new Response('Not found', { status: 404 })
+  const order = await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ?`).bind(orderId).first<OrderRow>()
+  if (!order || !order.link_id) return page('Order not found', '<h1>Order not found</h1><p class="muted">Start again from Shadow.</p>')
+  const status = await syncWithRazorpay(env, cfg, order)
+  if (status === 'paid') {
+    return page('Paid', `<h1 class="ok">✓ Payment received</h1><p class="muted">${order.credits} credits are in Shadow Cloud. You can close this tab.</p>`)
+  }
+  const testMode = env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')
+  const options = {
+    key: env.RAZORPAY_KEY_ID,
+    order_id: order.link_id,
+    amount: order.amount_paise,
+    currency: 'INR',
+    name: 'Shadow',
+    image: `${origin}/logo.png`,
+    description: `Shadow Cloud · ${order.credits} credits`,
+    notes: { order_id: order.id },
+    theme: { color: '#6d5ef5' }
+  }
+  return page(
+    `Shadow Cloud · ${rupees(order.amount_paise)}`,
+    `${testMode ? '<span class="tag">TEST MODE · no real money</span>' : ''}
+<h1>Shadow Cloud</h1><p class="muted">${order.credits} credits · pay once, nothing renews · price includes GST</p>
+<div class="price">${rupees(order.amount_paise)}</div>
+<button id="pay" type="button">Pay ${rupees(order.amount_paise)} with UPI or card</button>
+<p id="msg" class="muted" style="margin-top:14px">Paid securely through Razorpay. Shadow updates on its own once the payment goes through.</p>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  const options = ${JSON.stringify(options)};
+  const msg = document.getElementById('msg');
+  const pay = document.getElementById('pay');
+  options.handler = async (r) => {
+    pay.disabled = true;
+    msg.textContent = 'Confirming your payment…';
+    const res = await fetch(location.pathname + '/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(r) }).catch(() => null);
+    const ok = res && res.ok && (await res.json()).paid;
+    document.querySelector('main').innerHTML = ok
+      ? '<h1 class="ok">✓ Payment received</h1><p class="muted">${order.credits} credits are in Shadow Cloud. You can close this tab; Shadow has already updated.</p>'
+      : '<h1>Checking your payment…</h1><p class="muted">Shadow updates on its own once it goes through, so you can close this tab.</p>';
+  };
+  options.modal = { ondismiss: () => { msg.textContent = 'Payment not finished. Nothing was charged. Press the button to try again.'; } };
+  const rzp = new Razorpay(options);
+  rzp.on('payment.failed', () => { msg.textContent = "The payment didn't go through. No money was taken. Try again or use another UPI app."; });
+  pay.onclick = () => rzp.open();
+  rzp.open();
+</script>`
+  )
+}
+
+/** The checkout window's signed receipt: verified with the key secret, then the order is credited. */
+export async function verifyRazorpayPayment(env: Env, cfg: Config, request: Request, orderId: string): Promise<Response> {
+  if (cfg.checkoutMode !== 'razorpay') return json({ error: 'Not found' }, 404)
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+  const order = await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ?`).bind(orderId).first<OrderRow>()
+  if (!order?.link_id) return json({ paid: false }, 404)
+  const paymentId = String(body.razorpay_payment_id ?? '')
+  const signed =
+    String(body.razorpay_order_id ?? '') === order.link_id &&
+    (await validPaymentSignature(env.RAZORPAY_KEY_SECRET ?? '', order.link_id, paymentId, String(body.razorpay_signature ?? '')))
+  if (signed) {
+    await fulfil(env, order.id, paymentId)
+    return json({ paid: true })
+  }
+  // Unsigned or wrong: fall back to asking Razorpay directly.
+  return json({ paid: (await syncWithRazorpay(env, cfg, order)) === 'paid' })
+}
+
+/** Razorpay's server-to-server message (order.paid). Signed with RAZORPAY_WEBHOOK_SECRET. */
+export async function razorpayWebhook(env: Env, request: Request): Promise<Response> {
+  const raw = await request.text()
+  if (!(await validWebhook(env.RAZORPAY_WEBHOOK_SECRET ?? '', raw, request.headers.get('x-razorpay-signature')))) {
+    return json({ error: 'Bad signature' }, 400)
+  }
+  const event = JSON.parse(raw) as {
+    event?: string
+    payload?: { order?: { entity?: { id?: string; amount_paid?: number } }; payment?: { entity?: { id?: string } } }
+  }
+  if (event.event === 'order.paid') {
+    const rzpOrderId = event.payload?.order?.entity?.id
+    const order = rzpOrderId
+      ? await env.DB.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE link_id = ?`).bind(rzpOrderId).first<OrderRow>()
+      : null
+    if (order && (event.payload?.order?.entity?.amount_paid ?? 0) >= order.amount_paise) {
+      await fulfil(env, order.id, event.payload?.payment?.entity?.id ?? null)
+    }
+  }
+  return json({ ok: true }) // 200 so Razorpay doesn't retry events we don't use
 }
 
 /** Marks an order paid and adds its credits. Safe to call twice: only the first call credits. */
