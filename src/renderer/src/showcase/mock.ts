@@ -6,7 +6,7 @@ import { providerInfo } from '@shared/providers'
 
 export const demoSettings: Settings = {
   schemaVersion: 2,
-  source: 'keys',
+  source: 'cloud',
   language: 'auto',
   answerStyle: 'standard',
   activeProfile: null,
@@ -20,7 +20,7 @@ export const demoSettings: Settings = {
   answerFrom: 'anyone'
 }
 
-const cloudStatus = {
+export const cloudStatus = {
   state: 'ready' as const,
   deviceId: 'K7Q2-9MPX',
   balance: 14,
@@ -28,6 +28,33 @@ const cloudStatus = {
   creditsPerListenMinute: 3,
   error: null
 }
+
+// Made-up sample data for the interview prep screenshots: no real company or person.
+const DEMO_PROFILE = {
+  id: 'northwind-sde-intern',
+  company: 'Northwind',
+  role: 'SDE Intern',
+  body: `## About
+Northwind builds booking software for clinics: appointments, reminders and payments.
+
+## Interview rounds
+1. Online assessment: 2 DSA problems, 60 minutes
+2. Technical: one coding problem, then questions on a project
+3. HR: why Northwind, strengths, a time something went wrong
+
+## Prepared answers
+### Why Northwind?
+Clinics still run on phone calls and paper diaries. I built a pre-order app for our canteen and saw how much a simple booking flow changes someone's day.`
+}
+
+const DEMO_RESUME = `Final-year B.Tech, Computer Science
+
+PROJECTS
+Canteen Queue: pre-order app for the college canteen. React Native, Supabase. 600 students in the first month; lunch queue down from ~20 min to ~5.
+Shadow: open-source study overlay for Windows. Electron, React, TypeScript.
+
+SKILLS
+Python, Java, TypeScript, React, SQL, Git`
 
 const noop = () => {}
 const listen = () => () => {}
@@ -63,16 +90,16 @@ const mock: ShadowAPI = {
   buyPack: async () => {},
   checkoutAction: noop,
   openPaywall: noop,
-  listProfiles: async () => [],
-  getProfile: async () => null,
+  listProfiles: async () => [DEMO_PROFILE],
+  getProfile: async () => DEMO_PROFILE,
   saveProfile: async () => {},
   deleteProfile: async () => {},
   researchCompany: async () => ({ ok: false, message: 'Not available in the showcase' }),
   openProfilesFolder: noop,
-  getResume: async () => '',
+  getResume: async () => DEMO_RESUME,
   saveResume: async () => {},
   importResume: async () => null,
-  getKnowledgeSummary: async () => ({ hasAbout: true, projects: ['Shadow', 'Zen-Z'] }),
+  getKnowledgeSummary: async () => ({ hasAbout: true, projects: ['Canteen Queue', 'Shadow'] }),
   openKnowledgeFolder: noop,
   onAnswerStart: listen,
   onAnswerStatus: listen,

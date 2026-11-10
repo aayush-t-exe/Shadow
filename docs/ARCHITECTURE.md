@@ -37,6 +37,29 @@ Shadow is an Electron app with two kinds of process:
 
 They talk over a typed IPC bridge. Every channel name lives in one file (`src/shared/api.ts`), so the two sides can't drift apart.
 
+## Shadow Cloud and the two editions
+
+The installer people download is the **public edition**: every answer goes through Shadow Cloud, so nobody needs an API key. The **owner edition** (`npm run dev`, `npm run dist:owner`) also keeps "use my own API keys" with every provider and the key vault below. The edition is fixed at build time (`src/shared/edition.ts`).
+
+```mermaid
+flowchart LR
+  APP[Shadow app<br/>main process] -- device token --> W[Shadow Cloud<br/>Cloudflare Worker]
+  W --> D1[(D1: devices · credits<br/>usage · orders)]
+  W -- holds the keys --> G[Gemini / Groq]
+  W -- 1-minute token --> APP
+  APP -- audio --> DG[Deepgram]
+  RZ[Razorpay] -- order.paid webhook --> W
+```
+
+- **No sign-up.** On first launch the app registers itself and gets a readable Shadow ID plus 20 free credits. A reinstall on the same PC gets the same account back (a hashed Windows MachineGuid).
+- **Credits are charged per answer, not per request.** The main model, the backup model racing it, the screenshot reader and finishing a cut-off answer all share one action id, charged once.
+- **Listen** gets a short-lived Deepgram token from the server, so audio goes straight to Deepgram. Each minute is paid up front and refunded if the connection fails.
+- **Payments:** the server creates a Razorpay order, the browser pays on the server's checkout page, and credits are added once the signature, the order status or the `order.paid` webhook confirms it (whichever comes first, and only once).
+- **Out of credits:** the question and its screenshots are parked, the paywall shows, and the app polls until the payment lands, then answers the parked question.
+- A daily cost cap, a per-network limit on free credits and per-hour limits keep a bug or abuse from running up the AI bill.
+
+Details, screenshots and deployment: [Shadow Cloud](SHADOW-CLOUD.md) and [`server/README.md`](../server/README.md).
+
 ## Security model
 
 A 2025 security write-up showed that a link inside one commercial overlay's AI answer could quietly take screenshots and record audio, because its renderer could call anything in the main process. Shadow is built so that can't happen:
@@ -99,6 +122,7 @@ The overlay is a single transparent, always-on-top window, and most of it is emp
 
 - `npm test` runs the unit tests (Vitest). They cover the prompt builders, question detection (including real Deepgram transcripts with their mishearings, and Hindi), echo similarity, joining multi-part questions, code-block extraction mid-stream, and cursor hit-testing.
 - `npm run typecheck` runs strict TypeScript for both processes.
+- `cd server && npm test` runs the server's unit tests; `npm run e2e` there runs the real server under `wrangler dev` against fake AI providers, and `node scripts/app-e2e.mjs` drives the real app through registration, answers, the paywall and a test payment.
 - `npm run showcase` renders the README screenshots and the demo GIF from the real React components with sample data, in a hidden window (`src/renderer/src/showcase`, `scripts/showcase`).
 
 ## Project layout
@@ -106,11 +130,12 @@ The overlay is a single transparent, always-on-top window, and most of it is emp
 ```
 src/
   main/        hotkeys, windows, screenshots, session, settings, key vault, IPC
-    ai/        providers, prompts, error mapping
+    ai/        providers, prompts, error mapping, company research
     live/      audio permissions, Deepgram client, listening, auto-answer
   preload/     the typed bridge between page and main
   renderer/    overlay and settings UI (React), audio worklet, screenshot studio
   shared/      types and pure logic shared by both sides (and unit-tested)
+server/        Shadow Cloud: Cloudflare Worker + D1, credits, checkout, Razorpay
 scripts/       dev launcher, icon generator, screenshot studio runner
 research/      the research the design is based on
 ```

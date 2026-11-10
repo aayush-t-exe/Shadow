@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>One hotkey from stuck to understood.</b><br>
-  A free, open-source study companion for Windows, built as a college project.<br>
+  An open-source study companion for Windows, built as a college project.<br>
   It explains the coding problem on your screen step by step, in any programming language,<br>
   and can transcribe a lecture or a practice video to explain the answer.
 </p>
@@ -24,7 +24,7 @@
     <img src="https://img.shields.io/badge/Download%20for%20Windows-6D5EF5?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==" alt="Download for Windows">
   </a>
   <br>
-  <sub>Free · No account · Bring a free Gemini key · <a href="#-get-started-in-2-minutes">Get started</a> · <a href="#-what-it-does">Features</a> · <a href="docs/ARCHITECTURE.md">How it works</a></sub>
+  <sub>20 free answers · No account · No API key · <a href="#-get-started-in-2-minutes">Get started</a> · <a href="#-what-it-does">Features</a> · <a href="docs/ARCHITECTURE.md">How it works</a></sub>
 </p>
 
 <p align="center">
@@ -35,21 +35,21 @@
 
 I'm a computer science student in India. When I practise coding problems, the hard part is usually understanding *why* a solution works, not finding one. AI tools that can read your screen and explain it exist, but at **$20 to $299 a month** they cost more than most students spend in a month.
 
-Shadow does that job for free. You bring a free API key (Gemini's free tier is plenty for studying), and everything else runs on your own PC. I built it as my college project and kept it open source so anyone can use it, read it, or learn from it.
+Shadow does that job for a lot less. Install it and you get 20 answers free, with no account and no API key. After that, credits come in one-time packs from ₹49, paid with UPI, and nothing renews. I built it as my college project and kept it open source so anyone can read it or learn from it.
 
 <table>
   <tr>
     <td width="33%" valign="top">
-      <h3>💸 Actually free</h3>
-      No subscription, no account, MIT licensed. Works on free-tier keys, or fully offline with a local model.
+      <h3>💸 Student-priced</h3>
+      20 free answers to start, then ₹99 for about 120 more. Pay once, no subscription, no autopay.
     </td>
     <td width="33%" valign="top">
       <h3>🧠 Explains, not just answers</h3>
       Every solution comes with the idea behind it, the time and space complexity, edge cases and a dry run.
     </td>
     <td width="33%" valign="top">
-      <h3>🔌 Your choice of AI</h3>
-      Gemini, Groq, OpenRouter, OpenAI, Claude, Ollama on your own PC, or any OpenAI-compatible server.
+      <h3>🔑 No API key</h3>
+      Shadow Cloud runs the AI for you: Gemini writes the answers, and a backup model races it whenever it's slow.
     </td>
   </tr>
 </table>
@@ -70,9 +70,19 @@ Press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> while a lecture, a study cal
 
 ### 🇮🇳 Hindi and Hinglish too
 
-Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers in Hinglish. Code and technical terms stay in English.
+Ask a question out loud in Hindi or Hinglish and the answer comes back in Hinglish, written in English letters the way you'd say it. Code and technical terms stay in English, and English questions always get English answers.
 
 <p align="center"><img src="docs/images/hindi.png" width="860" alt="Shadow answering 'React Native kya hota hai?' in Hinglish"></p>
+
+### 🎯 Practise for interviews
+
+Add your resume, a few notes on your projects and a brief for the company you're preparing for. In a mock interview, "tell me about yourself" or "tell me about a project you're proud of" gets an answer built from your real projects, in your own words, never invented. Pick an answer style (Standard, Concise, Bullets, STAR or Detailed) from the bar.
+
+<p align="center"><img src="docs/images/interview.png" width="860" alt="A mock interview: Shadow answers 'Tell me about a project you're proud of' as a STAR story from the user's own project"></p>
+
+Everything lives in Settings as plain files on your PC: the resume (import a PDF or paste it), one note per project, and one markdown brief per company with the job description, the rounds and your prepared answers.
+
+<p align="center"><img src="docs/images/prep.png" width="760" alt="Shadow's interview prep settings: resume, project notes and a company brief"></p>
 
 ### 🛠️ Debug and follow up
 
@@ -83,11 +93,11 @@ Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers 
 ## 🚀 Get started in 2 minutes
 
 1. **[Download `Shadow-Setup.exe`](https://github.com/aayush-t-exe/Shadow/releases/latest/download/Shadow-Setup.exe)** and run it. Windows may say *"Windows protected your PC"*, because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**.
-2. Shadow appears as a slim bar at the top of your screen. Get a free key at **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**, click **⚙** in Shadow's bar, and paste it under **API keys**.
+2. Shadow appears as a slim bar at the top of your screen with **20 free credits**. No sign-up, no key.
 3. Open any coding problem and press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>.
-4. *Optional:* to transcribe lectures and videos (Listen), add a free **[Deepgram](https://console.deepgram.com/signup)** key too ($200 of free credit, no card).
+4. *Optional:* press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> during a lecture or a practice video to transcribe it and explain the questions asked.
 
-<p align="center"><img src="docs/images/welcome.png" width="860" alt="Shadow's first-run welcome card with three steps"></p>
+<p align="center"><img src="docs/images/welcome.png" width="860" alt="Shadow's first-run welcome card: 20 free credits, no API key needed"></p>
 
 ## ⌨️ Shortcuts
 
@@ -102,32 +112,35 @@ Ask in Hindi and the answer comes back in Hindi; ask in Hinglish and it answers 
 | New session | <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>R</kbd> |
 | Move the bar (or drag its ⠿ handle) | <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> |
 
-## 🔌 Bring your own AI
+## 💳 Credits
 
-| Provider | Cost | Good for |
+| | Credits | Price |
 |---|---|---|
-| **Google Gemini** (default) | Free tier, no card | Reading screenshots, fast answers |
-| **Groq** | Free tier | Very fast answers |
-| **OpenRouter** | Free models available | Trying many different models with one key |
-| **OpenAI** / **Anthropic Claude** | Paid | The strongest reasoning |
-| **Ollama** | Free, runs on your PC | Working offline and fully private |
-| **Any OpenAI-compatible server** | Depends | LM Studio, DeepSeek, vLLM and others |
+| Starter (once per PC) | 20 | Free |
+| Small | 50 | ₹49 |
+| **Regular** | **120** | **₹99** |
+| Big | 350 | ₹249 |
 
-Pick a provider in Settings, click **Fetch models** to see what your key can use, and **Test** to check it works. Answers show which model replied and how fast.
+- **1 credit = 1 answer.** A follow-up question is an answer too. If the backup model or the screenshot reader joins in, you're still charged once.
+- **Listen uses 3 credits a minute**, so ₹99 is about 40 minutes of a lecture.
+- **Pay once.** Packs are paid through Razorpay with UPI or a card, prices include GST, and nothing renews. When you run out mid-question, the question is saved and answered as soon as the payment goes through.
 
-<p align="center"><img src="docs/images/settings.png" width="760" alt="Shadow's settings window with provider, model and API key options"></p>
+More about how it works, with screenshots of every step: **[Shadow Cloud](docs/SHADOW-CLOUD.md)**.
+
+<p align="center"><img src="docs/images/settings.png" width="760" alt="Shadow's settings window: Shadow Cloud credits, live listening and answer options"></p>
 
 ## 🔒 Privacy
 
-- **Your keys stay on your PC**, encrypted with Windows' built-in protection. Shadow never shows them again after you save them.
-- **Screenshots and audio go only to the provider you picked.** Shadow has no server of its own and collects nothing.
-- **Shadow is always visible.** It doesn't hide from screen sharing or recording. It's a study tool for practising on your own.
+- **No account.** Shadow Cloud knows your install by a random Shadow ID (like `K7Q2-9MPX`), not by your name or email.
+- **Your questions aren't stored.** Screenshots, audio and answers pass through Shadow Cloud to the AI provider (Google Gemini or Groq; Deepgram for Listen) and aren't saved on the server. The server keeps your credit balance, payments, and per-answer counts (tokens, cost, speed) so it can bill and keep costs down. To limit free credits, it also counts new installs per network address each day.
+- **Your resume and notes stay on your PC.** Only the parts that matter for a question are sent with it.
 
-## 🧩 How it's built
+## 🧩 How it's built## 🧩 How it's built
 
-Electron, React and TypeScript, with the Vercel AI SDK talking to seven providers and Deepgram for live transcription. Every AI call runs in Electron's background process, so the interface never sees your keys.
+Electron, React and TypeScript, with the Vercel AI SDK for the AI calls and Deepgram for live transcription. Shadow Cloud is a Cloudflare Worker with a D1 database that holds the AI keys, counts credits and takes payments through Razorpay ([`server/`](server/)).
 
 - **[How Shadow works](docs/ARCHITECTURE.md)**: the design, the security model and the transcription pipeline
+- **[Shadow Cloud](docs/SHADOW-CLOUD.md)**: credits, the paywall and the server
 - **[Research notes](research/)**: how existing screen-reading AI tools are built, 11 open-source projects compared, and the reasoning behind each design decision
 
 <details>
@@ -141,9 +154,11 @@ cd Shadow
 npm install
 npm run dev        # run with hot reload
 npm test           # unit tests
-npm run dist       # build dist/Shadow-Setup.exe
+npm run dist       # build dist/Shadow-Setup.exe (Shadow Cloud only)
 npm run showcase   # re-render the README screenshots
 ```
+
+A build from `npm run dev` or `npm run dist:owner` can also use your own API keys instead of Shadow Cloud: Gemini, Groq, OpenRouter, OpenAI, Claude, Ollama on your own PC, or any OpenAI-compatible server. To run Shadow Cloud yourself, see [`server/README.md`](server/README.md).
 
 </details>
 
@@ -151,8 +166,9 @@ npm run showcase   # re-render the README screenshots
 
 - [x] Solve, debug and follow up from screenshots
 - [x] Live transcription with short explanations
-- [x] Seven AI providers, including fully local
 - [x] Hindi and Hinglish
+- [x] Interview practice from your resume, projects and company briefs
+- [x] Shadow Cloud: no API key, one-time credit packs
 - [ ] Save sessions and export them as notes
 - [ ] Free offline transcription (local Whisper)
 - [ ] Custom shortcuts
