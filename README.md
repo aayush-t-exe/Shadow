@@ -12,7 +12,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aayush-t-exe/Shadow/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/aayush-t-exe/Shadow?style=flat-square&color=7c3aed"></a>
   <img alt="Windows 10 | 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==">
   <img alt="Built with Electron" src="https://img.shields.io/badge/Electron-47848F?style=flat-square&logo=electron&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB">
@@ -20,11 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aayush-t-exe/Shadow/releases/latest/download/Shadow-Setup.exe">
-    <img src="https://img.shields.io/badge/Download%20for%20Windows-6D5EF5?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg==" alt="Download for Windows">
-  </a>
-  <br>
-  <sub>20 free answers · No account · No API key · <a href="#-get-started-in-2-minutes">Get started</a> · <a href="#-what-it-does">Features</a> · <a href="docs/ARCHITECTURE.md">How it works</a></sub>
+  <sub>Windows installer coming soon · 20 free answers · No account · No API key · <a href="#-getting-started">Get started</a> · <a href="#-what-it-does">Features</a> · <a href="docs/ARCHITECTURE.md">How it works</a></sub>
 </p>
 
 <p align="center">
@@ -90,9 +85,11 @@ Everything lives in Settings as plain files on your PC: the resume (import a PDF
 - **Follow up:** ask "why is this O(n)?", "can you do it in O(1) space?" or "show me this in Java". It remembers the problem.
 - **Copy:** <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>C</kbd> copies the solution, ready to paste.
 
-## 🚀 Get started in 2 minutes
+## 🚀 Getting started
 
-1. **[Download `Shadow-Setup.exe`](https://github.com/aayush-t-exe/Shadow/releases/latest/download/Shadow-Setup.exe)** and run it. Windows may say *"Windows protected your PC"*, because the app isn't code-signed (signing certificates cost money). Click **More info → Run anyway**.
+> **The Windows installer is coming soon.** Until then you can build Shadow yourself: see *Build from source* below.
+
+1. Install Shadow and run it.
 2. Shadow appears as a slim bar at the top of your screen with **20 free credits**. No sign-up, no key.
 3. Open any coding problem and press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>.
 4. *Optional:* press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd> during a lecture or a practice video to transcribe it and explain the questions asked.
