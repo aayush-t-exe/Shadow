@@ -18,7 +18,8 @@ function setLevel(source: 'mic' | 'system', rms: number) {
 
 async function start() {
   try {
-    await window.shadow.startListening()
+    // false: out of Shadow Cloud credits; main has opened the paywall instead.
+    if (!(await window.shadow.startListening())) return
   } catch (err) {
     reportError(err)
     return

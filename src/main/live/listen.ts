@@ -5,6 +5,8 @@ import { latestQuestionRun } from '@shared/question'
 import { getApiKey } from '../secrets'
 import { getSettings } from '../settings'
 import { broadcast } from '../windows'
+import { ShadowError } from '../ai/errors'
+import { cloudListenTick, cloudListenToken, showPaywall, startCloudListen, stopCloudListen } from '../cloud'
 import { DeepgramFlux, type FluxTurn } from './deepgram'
 
 // Owns one Deepgram socket per audio source while listening, turns their events into
@@ -32,6 +34,14 @@ const MAX_HISTORY = 300
 const ECHO_SIMILARITY = 0.6
 const ECHO_WINDOW_MS = 4000
 const RECONNECT_DELAY_MS = 1000
+// Shadow Cloud charges listening by the minute; the app checks in this often.
+const CLOUD_TICK_MS = 60_000
+const CLOUD_REJECTED = "Shadow Cloud couldn't start listening. Try again in a moment."
+
+/** How the sockets sign in: the user's own Deepgram key, or a Shadow Cloud session. */
+type SpeechAuth = { kind: 'key'; key: string } | { kind: 'cloud'; session: string }
+let speechAuth: SpeechAuth | null = null
+let tickTimer: ReturnType<typeof setInterval> | null = null
 
 let status: ListenStatus = { state: 'off', startedAt: null, warning: null }
 let sockets: Partial<Record<AudioSourceId, DeepgramFlux>> = {}
@@ -88,48 +98,104 @@ function handleTurn(source: AudioSourceId, gen: number, turn: FluxTurn) {
   emitSignal({ kind: 'final', turn: finalTurn })
 }
 
-async function openSocket(source: AudioSourceId, apiKey: string): Promise<void> {
+/** The Authorization header for a new socket. Shadow Cloud tokens live a minute, so reconnects get a fresh one. */
+async function authorizationFor(auth: SpeechAuth): Promise<string> {
+  return auth.kind === 'key' ? `Token ${auth.key}` : `Bearer ${await cloudListenToken(auth.session)}`
+}
+
+async function openSocket(source: AudioSourceId, authorization: string): Promise<void> {
   const gen = ++generation
-  const socket = new DeepgramFlux(apiKey, getSettings().sttLanguage, {
-    onTurn: (turn) => handleTurn(source, gen, turn),
-    onError: (message) => setStatus({ warning: `${SPEAKER[source]}: ${message}` }),
-    onDrop: () => void reconnect(source, apiKey)
-  })
+  const socket = new DeepgramFlux(
+    authorization,
+    getSettings().sttLanguage,
+    {
+      onTurn: (turn) => handleTurn(source, gen, turn),
+      onError: (message) => setStatus({ warning: `${SPEAKER[source]}: ${message}` }),
+      onDrop: () => void reconnect(source)
+    },
+    speechAuth?.kind === 'cloud' ? CLOUD_REJECTED : undefined
+  )
   sockets[source] = socket
   await socket.connect()
 }
 
-async function reconnect(source: AudioSourceId, apiKey: string) {
-  if (status.state !== 'on') return
+async function reconnect(source: AudioSourceId) {
+  if (status.state !== 'on' || !speechAuth) return
   setStatus({ warning: `Reconnecting ${SPEAKER[source]}…` })
   await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS))
-  if (status.state !== 'on') return
+  if (status.state !== 'on' || !speechAuth) return
   try {
-    await openSocket(source, apiKey)
+    await openSocket(source, await authorizationFor(speechAuth))
     setStatus({ warning: null })
   } catch (err) {
     setStatus({ warning: `${SPEAKER[source]} transcription stopped: ${err instanceof Error ? err.message : err}` })
   }
 }
 
-/** Opens the transcription sockets. The renderer starts capturing audio once this resolves. */
-export async function startListening(): Promise<void> {
-  if (status.state !== 'off') return
+/**
+ * Opens the transcription sockets. The renderer starts capturing audio only if this resolves
+ * true; false means Shadow Cloud is out of credits and the paywall was shown instead.
+ */
+export async function startListening(): Promise<boolean> {
+  if (status.state !== 'off') return status.state === 'on'
   setStatus({ state: 'starting', warning: null })
-  const apiKey = await getApiKey('deepgram')
-  if (!apiKey) {
-    setStatus({ state: 'off' })
-    throw new Error('Add a Deepgram API key in Settings to use live listening.')
-  }
+  let authorization: string
   try {
-    await Promise.all(SOURCES.map((source) => openSocket(source, apiKey)))
+    if (getSettings().source === 'cloud') {
+      // Pays for the first minute and returns a short-lived token both sockets can open with.
+      const { session, token } = await startCloudListen()
+      speechAuth = { kind: 'cloud', session }
+      authorization = `Bearer ${token}`
+    } else {
+      const key = await getApiKey('deepgram')
+      if (!key) throw new Error('Add a Deepgram API key in Settings to use live listening.')
+      speechAuth = { kind: 'key', key }
+      authorization = `Token ${key}`
+    }
+    await Promise.all(SOURCES.map((source) => openSocket(source, authorization)))
   } catch (err) {
     closeSockets()
+    endSpeechAuth(true)
     setStatus({ state: 'off' })
+    if (err instanceof ShadowError && err.code === 'NO_CREDITS') {
+      showPaywall('listen')
+      return false
+    }
     throw err
   }
   listenStartedAt = Date.now()
   setStatus({ state: 'on', startedAt: listenStartedAt })
+  if (speechAuth?.kind === 'cloud') {
+    const session = speechAuth.session
+    tickTimer = setInterval(() => void tick(session), CLOUD_TICK_MS)
+  }
+  return true
+}
+
+/** Pays for the next minute of Shadow Cloud listening; stops listening when the credits run out. */
+async function tick(session: string) {
+  try {
+    await cloudListenTick(session)
+  } catch (err) {
+    if (err instanceof ShadowError && err.code === 'NO_CREDITS') {
+      // The transcript so far stays on screen; the paywall offers more minutes.
+      stopListening()
+      showPaywall('listen')
+    } else if (err instanceof ShadowError && /ended|busy/i.test(err.message)) {
+      stopListening()
+      broadcast(IPC.toast, err.message)
+    } else {
+      setStatus({ warning: err instanceof Error ? err.message : String(err) })
+    }
+  }
+}
+
+/** `failed`: the sockets never opened, so Shadow Cloud refunds the prepaid minute. */
+function endSpeechAuth(failed = false) {
+  if (tickTimer) clearInterval(tickTimer)
+  tickTimer = null
+  if (speechAuth?.kind === 'cloud') stopCloudListen(speechAuth.session, failed)
+  speechAuth = null
 }
 
 /** Closes both sockets; each first finalizes any sentence still in progress. */
@@ -141,6 +207,7 @@ function closeSockets() {
 export function stopListening(): void {
   if (status.state === 'off') return
   closeSockets()
+  endSpeechAuth()
   setStatus({ state: 'off', startedAt: null, warning: null })
 }
 

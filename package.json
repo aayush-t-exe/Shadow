@@ -15,7 +15,9 @@
     "test": "vitest run",
     "showcase": "node scripts/showcase/run.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "dist": "node scripts/electron-vite.mjs build && electron-builder --win"
+    "dist": "node scripts/electron-vite.mjs build && electron-builder --win",
+    "dist:owner": "node scripts/electron-vite.mjs build --owner && electron-builder --win",
+    "cloud:dev": "npm --prefix server run dev"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.84",

@@ -1,7 +1,8 @@
 import Store from 'electron-store'
 import { z } from 'zod'
-import type { Settings } from '@shared/types'
+import { CODE_LANGUAGES, type Settings } from '@shared/types'
 import { providerInfo } from '@shared/providers'
+import { IS_OWNER_EDITION } from '@shared/edition'
 import { PROFILE_ID } from '@shared/profile'
 
 const providerId = z.enum(['gemini', 'groq', 'openai', 'anthropic', 'openrouter', 'ollama', 'custom'])
@@ -10,7 +11,9 @@ const modelChoice = z.object({ provider: providerId, modelId: z.string().max(200
 // Patches from the renderer are validated before they touch disk.
 const settingsPatch = z
   .object({
-    language: z.enum(['python', 'java']),
+    // Only the owner edition may switch to the user's own keys.
+    source: IS_OWNER_EDITION ? z.enum(['cloud', 'keys']) : z.literal('cloud'),
+    language: z.enum(CODE_LANGUAGES),
     answerStyle: z.enum(['standard', 'concise', 'bullets', 'star', 'detailed']),
     activeProfile: z.string().regex(PROFILE_ID).nullable(),
     answerModel: modelChoice,
@@ -27,7 +30,9 @@ const settingsPatch = z
 
 const DEFAULTS: Settings = {
   schemaVersion: 2,
-  language: 'python',
+  // The owner edition keeps working exactly as before (own keys) until switched.
+  source: IS_OWNER_EDITION ? 'keys' : 'cloud',
+  language: 'auto',
   answerStyle: 'standard',
   activeProfile: null,
   answerModel: providerInfo('gemini').defaultModel,
@@ -57,7 +62,10 @@ function getStore(): Store<Settings> {
 }
 
 export function getSettings(): Settings {
-  return { ...DEFAULTS, ...getStore().store }
+  const settings = { ...DEFAULTS, ...getStore().store }
+  // A settings file copied from an owner install can't switch the public edition to own keys.
+  if (!IS_OWNER_EDITION) settings.source = 'cloud'
+  return settings
 }
 
 export function updateSettings(patch: unknown): Settings {

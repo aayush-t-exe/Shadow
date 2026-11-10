@@ -22,8 +22,10 @@ const STILLS = [
   { scene: 'hero', file: 'hero.png', width: 1440, height: 900 },
   { scene: 'listen', file: 'listen.png', width: 1440, height: 900 },
   { scene: 'hindi', file: 'hindi.png', width: 1440, height: 900 },
+  { scene: 'interview', file: 'interview.png', width: 1440, height: 900 },
   { scene: 'welcome', file: 'welcome.png', width: 1440, height: 560 },
   { scene: 'settings', file: 'settings.png', width: 1440, height: 900 },
+  { scene: 'prep', file: 'prep.png', width: 1440, height: 900 },
   { scene: 'social', file: 'social-preview.png', width: 1280, height: 640 }
 ]
 

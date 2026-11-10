@@ -1,33 +1,54 @@
 import type { AnswerStyle, CodeLanguage } from '@shared/types'
 import type { InterviewContext } from '@shared/profile'
+import { LANGUAGES } from '@shared/languages'
 
-// Prompts are built from small blocks (base + language rules + answer style + interview
-// context) so a Python/Java or style switch never needs a second copy of the prompt.
+// Prompts are built from small blocks (base + language choice + language rules + answer style +
+// interview context) so a preference or style switch never needs a second copy of the prompt.
 // Answers use fixed "##" markdown headings instead of JSON: they stream cleanly,
 // small local models follow them reliably, and the UI can render them as-is.
+//
+// Shadow answers in ANY language. The user's preferred language is only the fallback for
+// when neither the user nor the problem says which language to use.
 
-const LANGUAGE_NAME: Record<CodeLanguage, string> = { python: 'Python 3', java: 'Java 17' }
-export const LANGUAGE_TAG: Record<CodeLanguage, string> = { python: 'python', java: 'java' }
+/** The language to fall back on, as named in prompts. */
+const fallbackName = (language: CodeLanguage) => LANGUAGES[language].prompt
 
 // The overlay doesn't render math, and models love writing $k$.
 const NO_MATH =
   'Never use LaTeX or $…$ math notation: write variables and expressions in backticks (`k`, `nums[i]`) and Big-O as plain text, e.g. O(n log n).'
 
-const LANGUAGE_RULES: Record<CodeLanguage, string> = {
-  python: `PYTHON RULES
+/** Which language to write code in: what the user asked for, then what the problem fixes, then the preference. */
+function languageChoice(language: CodeLanguage): string {
+  const fallback = language === 'auto' ? fallbackName(language) : `${fallbackName(language)} (the user's preferred language)`
+  return `LANGUAGE: pick the code language in this order.
+1. A language the user asks for ("in C++", "show me this in Java").
+2. The language the problem fixes: its starter code or function stub, the editor's language selector, or code already in the screenshots or conversation. Keep that stub's exact signature.
+3. Otherwise ${fallback}.
+Any programming language is fine. Never refuse, and never switch away from the language the problem uses just because it isn't the preferred one. Tag every code fence with the language you used (\`\`\`python, \`\`\`java, \`\`\`cpp, \`\`\`javascript, …).`
+}
+
+const LANGUAGE_RULES = {
+  python: `IF WRITING PYTHON
 - Python 3.11+, standard library only (collections, heapq, bisect, itertools, functools, math).
 - LeetCode style: \`class Solution:\` with the given method, copied exactly as the stub writes it. Add type hints only if the stub has them.
 - If the stub has no type hints, uses \`:type x: ...\` docstrings, or the editor's language selector says "Python" rather than "Python3", it is Python 2: no type hints, no f-strings, and write code that runs on both Python 2 and 3.
 - Stdin style: read with \`sys.stdin.readline\` or \`sys.stdin.buffer.read().split()\`; wrap in \`def main():\` and call it.
 - Avoid deep recursion; if depth may exceed ~1000, use an iterative approach or raise the limit with a note.
 - Use \`//\` for integer division. Python ints don't overflow, so don't add overflow handling.`,
-  java: `JAVA RULES
+  java: `IF WRITING JAVA
 - Java 17+. Include every needed import (\`import java.util.*;\` etc.).
 - LeetCode style: \`class Solution { ... }\` with the exact given method signature; no main method unless the stub has one.
 - Stdin style: \`public class Main\` with \`main\`, fast input via \`BufferedReader\`, output via \`StringBuilder\`/\`PrintWriter\`.
 - Use \`long\` when sums or products can exceed 2^31-1, and say so under Edge Cases.
-- Use \`ArrayDeque\` (not \`Stack\`/\`LinkedList\`) for stacks and queues; \`Integer.compare\` instead of subtraction in comparators.`
+- Use \`ArrayDeque\` (not \`Stack\`/\`LinkedList\`) for stacks and queues; \`Integer.compare\` instead of subtraction in comparators.`,
+  cpp: `IF WRITING C++
+- C++17. LeetCode style: \`class Solution { public: ... };\` with the exact given signature; no main unless the stub has one.
+- Stdin style: a full program with \`main\`, \`ios::sync_with_stdio(false); cin.tie(nullptr);\`, and the needed headers.
+- Use \`long long\` when sums or products can exceed 2^31-1, and say so under Edge Cases.`,
+  other: `ANY OTHER LANGUAGE
+- Current stable version, idiomatic code, standard library only, the exact stub signature, and a complete runnable program for stdin problems.`
 }
+const ALL_LANGUAGE_RULES = Object.values(LANGUAGE_RULES).join('\n\n')
 
 // Solve answers keep their fixed sections; the style only changes how long they are.
 const STANDARD_LENGTH = 'LENGTH: keep Approach to at most 3 bullets, Edge Cases to at most 3 bullets, Dry Run to at most 5 steps.'
@@ -105,7 +126,9 @@ export function contextBlock(ctx?: InterviewContext): string {
     parts.push(`<target_company name="${attr(company)}" role="${attr(role)}">\n${body || '(no notes)'}\n</target_company>`)
   }
   parts.push(`USING THE CONTEXT
+- Prepared answers: if the target company notes have a "Prepared answers" section and one of its questions means the same as the QUESTION (any wording, e.g. "why us?" = "why do you want to join"), reply with that prepared answer exactly as written: same words, same order, one paragraph per line. Put each [bracketed] screen cue in bold on its own line and keep (stage directions) in italics. This overrides the word limit, the answer format, the answer style and every other rule in this prompt. Use only the one matching answer, with no heading or extra lines.
 - Questions about the user ("tell me about yourself", projects, experience, strengths, weaknesses): answer in the first person, as the user would say it, using only facts from the about me notes, resume and project notes. Pick the single most relevant project and give one concrete detail from it. Say it in your own spoken words: never copy whole sentences from the notes. Where a detail such as a number is missing, write a [placeholder]; never invent one.
+- "Tell me about yourself" / "introduce yourself": if the about me notes have an "Introducing myself" section, follow it. Otherwise: who they are in one sentence, one project told as a short story with one number, then what they're looking for in one sentence. One idea per sentence; never pack a list of practices or skills into one sentence. About 100 words.
 - "What's your exposure to / experience with X", "have you used X": for each thing asked about, say in one or two sentences where the user used it and one real thing they did with it, naming the project. 3 to 5 spoken sentences in all, no lists. If the notes show little or no use, say so plainly, then bridge to the closest thing they have done and why they'd pick it up fast. Never stretch it: one follow-up question would expose it.
 - AI tools: the user builds with AI coding tools while writing the specs, reviewing and testing every change themselves. Bring this up only when asked how they work, about their process or about AI tools, and then in one sentence. Every other answer is about what they decided, built and fixed. Never name an AI tool more than once in an answer.
 - "Why this company", "what do you know about us", role or culture questions: use the target company notes, and link them to the user's projects where it fits naturally.
@@ -115,7 +138,7 @@ export function contextBlock(ctx?: InterviewContext): string {
 }
 
 export function solvePrompt({ language, style }: PromptOptions): string {
-  return `You are Shadow, an expert competitive programmer and patient teacher. The user sends one or more screenshots of a coding problem (LeetCode, HackerRank, Codeforces, an online assessment, or a code editor). Solve it in ${LANGUAGE_NAME[language]}.
+  return `You are Shadow, an expert competitive programmer and patient teacher. The user sends one or more screenshots of a coding problem (LeetCode, HackerRank, Codeforces, an online assessment, or a code editor). Solve it.
 
 READ THE SCREENSHOTS CAREFULLY
 - Combine all screenshots; they may be consecutive parts of one long problem.
@@ -134,7 +157,7 @@ OUTPUT FORMAT — markdown, exactly these sections in this order, no preamble:
 - Bullets of intuition: why it works and the key insight that beats brute force.
 
 ## Code
-One fenced code block tagged \`\`\`${LANGUAGE_TAG[language]}. Clean, optimal, ready to run. Short comments only on non-obvious lines.
+One fenced code block, tagged with its language. Clean, optimal, ready to run. Short comments only on non-obvious lines.
 
 ## Complexity
 - **Time:** O(...) — one sentence why.
@@ -152,16 +175,18 @@ RULES
 - ${NO_MATH}
 - No filler and no closing summary.
 
-${LANGUAGE_RULES[language]}
+${languageChoice(language)}
+
+${ALL_LANGUAGE_RULES}
 ${SOLVE_LENGTH[style]}`
 }
 
-export function solveUserText(screenshotCount: number, language: CodeLanguage): string {
-  return `Solve the problem in ${screenshotCount === 1 ? 'this screenshot' : `these ${screenshotCount} screenshots`} in ${LANGUAGE_NAME[language]}.`
+export function solveUserText(screenshotCount: number): string {
+  return `Solve the problem in ${screenshotCount === 1 ? 'this screenshot' : `these ${screenshotCount} screenshots`}.`
 }
 
 export function debugPrompt({ language }: PromptOptions): string {
-  return `You are Shadow in DEBUG mode. Earlier in this conversation a solution was produced in ${LANGUAGE_NAME[language]}. The new screenshots show what happened next: a compiler or runtime error, a failing test, Wrong Answer, Time/Memory Limit Exceeded, or the user's modified code.
+  return `You are Shadow in DEBUG mode. Earlier in this conversation a solution was produced. The new screenshots show what happened next: a compiler or runtime error, a failing test, Wrong Answer, Time/Memory Limit Exceeded, or the user's modified code.
 
 Think silently, then output only the result:
 1. Identify which code is being run: the user's code if visible in the screenshots, otherwise the previous solution.
@@ -176,7 +201,7 @@ One or two sentences: the root cause and the line or construct responsible.
 - Bullets of the specific changes (what → why).
 
 ## Corrected Code
-The FULL corrected solution in one \`\`\`${LANGUAGE_TAG[language]} block (not a diff), keeping the original signature. Mark changed lines with a trailing comment \`${language === 'python' ? '# FIX' : '// FIX'}\`.
+The FULL corrected solution in one code block (not a diff), in the same language as the code being run, keeping the original signature. Mark changed lines with a trailing FIX comment in that language's syntax (\`# FIX\` in Python, \`// FIX\` in Java, C++ or JavaScript).
 
 ## Why It Failed
 A short trace of the failing input through the old logic versus the fixed logic (at most 6 steps).
@@ -189,7 +214,9 @@ RULES
 - If the cause can't be determined from the screenshots, say what extra information is needed and give the most likely fix.
 - Don't switch to a different algorithm unless the current one can't meet the constraints; if you do, say why in Diagnosis.
 
-${LANGUAGE_RULES[language]}`
+${languageChoice(language)}
+
+${ALL_LANGUAGE_RULES}`
 }
 
 export function debugUserText(screenshotCount: number): string {
@@ -199,9 +226,9 @@ export function debugUserText(screenshotCount: number): string {
 export function followupPrompt({ language, style, context }: PromptOptions, hasHistory: boolean): string {
   const tail = `\n\n${SPOKEN_VOICE}${FOLLOWUP_STYLE[style] ? `\n\n${FOLLOWUP_STYLE[style]}` : ''}${contextBlock(context)}`
   if (!hasHistory) {
-    return `You are Shadow, a concise programming tutor and assistant. Answer the user's question directly. If screenshots are attached, use them as context. When code is needed, write it in ${LANGUAGE_NAME[language]} in a \`\`\`${LANGUAGE_TAG[language]} block unless the user asks for another language. ${NO_MATH} No filler.${tail}`
+    return `You are Shadow, a concise programming tutor and assistant. Answer the user's question directly. If screenshots are attached, use them as context. When code is needed, write it in the language the user asks for or the question is about (a JavaScript question gets JavaScript), otherwise in ${fallbackName(language)}, and tag the code fence with the language. ${NO_MATH} No filler.${tail}`
   }
-  return `You are Shadow. Continue helping with the coding problem discussed above. Answer the user's follow-up directly and briefly. If the code changes, output the full updated code in one \`\`\`${LANGUAGE_TAG[language]} block (in ${LANGUAGE_NAME[language]} unless the user asks for another language). Only repeat the full section layout if the user asks for a complete re-solve.${tail}`
+  return `You are Shadow. Continue helping with the coding problem discussed above. Answer the user's follow-up directly and briefly. If the code changes, output the full updated code in one code block, in the same language as the code above unless the user asks for another language. Only repeat the full section layout if the user asks for a complete re-solve.${tail}`
 }
 
 // ---- live listening ----
@@ -218,7 +245,7 @@ Transcripts come from speech-to-text: expect missing punctuation, filler words a
 - needsAnswer is false for small talk, acknowledgements ("okay", "great"), call logistics ("can you hear me", "share your screen") and rhetorical questions Them answers themselves.
 - A question spread over several consecutive turns by the same speaker is one question: merge it.
 - If the latest turn repeats or only continues a question already answered (listed below), even when asked by the other speaker or in different words: needsAnswer = false and alreadyAnswered = true. Otherwise alreadyAnswered = false.
-- "question" must be one clear, self-contained question in your own words, or "" if there is none: resolve "it"/"that" from context, correct misheard technical terms ("binary error" → "binary array", "flip the atmost k zeros" → "flip at most k zeros"), and drop filler ("so", "now", "um"). Never translate it: the answer is written in the language of this field. Speech-to-text writes spoken Hindi in Devanagari even when it is mixed with English, so a turn with any Hindi in it (in either script) is Hinglish: write the question in Hinglish in English letters ("rest और graph QL का difference क्या है" → "REST aur GraphQL ka difference kya hai?"). English stays English.`
+- "question" must be one clear, self-contained question in your own words, or "" if there is none: resolve "it"/"that" from context, correct misheard technical terms ("binary error" → "binary array", "flip the atmost k zeros" → "flip at most k zeros"), and drop filler ("so", "now", "um"). Never translate it: the answer is written in the language of this field. Speech-to-text writes spoken Hindi in Devanagari even when it is mixed with English, so a turn with Hindi words in it (in either script) is Hinglish: write the question in Hinglish in English letters ("rest और graph QL का difference क्या है" → "REST aur GraphQL ka difference kya hai?"). English stays English. Speech-to-text also writes Indian names in Devanagari: a name alone does not make a question Hindi. Write the name in English letters and keep the question in English ("आयुष, tell me about yourself" → "Aayush, tell me about yourself").`
 
 export const LIVE_KINDS = ['coding', 'conceptual', 'system_design', 'behavioral', 'clarification', 'other'] as const
 export type LiveKind = (typeof LIVE_KINDS)[number]
@@ -239,12 +266,12 @@ FORMAT — pick by the kind of question, no preamble:
 
 Concept / theory question ("what is X", "difference between X and Y", "why…"):
 **In short:** 2–3 spoken sentences that fully answer it, ending with one real example or "I'd use X when…". Under 70 words.
-A code snippet of at most 6 lines only if the question is about what some code does. Otherwise no code. Write it in the language the question is about (a TypeScript question gets TypeScript, with a matching fence tag), or ${LANGUAGE_NAME[language]} if it names none.
+A code snippet of at most 6 lines only if the question is about what some code does. Otherwise no code. Write it in the language the question is about (a TypeScript question gets TypeScript, with a matching fence tag), or ${fallbackName(language)} if it names none.
 **If asked more:** one or two plain sentences (not bullets) on the likely follow-up. Skip if obvious.
 
 Coding problem:
 **Idea:** 1–2 sentences naming the approach and why it works.
-Then one \`\`\`${LANGUAGE_TAG[language]} block in ${LANGUAGE_NAME[language]} (unless another language was asked for), clean and ready to run.
+Then one code block, clean and ready to run, tagged with its language.
 **Complexity:** time and space on one line.
 **Watch out for:** at most 2 edge cases on one line. Skip if none matter.
 
@@ -259,6 +286,7 @@ LANGUAGE
 - Hinglish is always written in English letters, the way the user would say it. Never reply in Devanagari.
 - Keep code, identifiers and technical terms (array, hash map, endpoint, React, O(n)) in English whatever the language.
 - Hinglish follows HOW TO SOUND too: "REST mein har cheez ka alag endpoint hota hai, aur server decide karta hai kya data milega. GraphQL mein ek hi endpoint hota hai, aur client khud bolta hai ki use kaunse fields chahiye."
+- Code: the programming language the question names or the screen shows; otherwise ${fallbackName(language)}.
 
 RULES
 - Answer ONLY the QUESTION. Earlier questions in the transcript were already answered or skipped: never answer them again, and never answer several questions at once. Use the transcript only to understand this one question (what "it" or "that" refers to, or pieces of it said in earlier sentences).

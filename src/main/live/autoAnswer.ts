@@ -4,10 +4,9 @@ import { z } from 'zod'
 import { looksLikeQuestion, questionScore } from '@shared/question'
 import { similarity } from '@shared/text'
 import { getSettings } from '../settings'
-import { getModel, speedOptions } from '../ai/providers'
-import { getApiKey } from '../secrets'
-import { providerInfo } from '@shared/providers'
-import type { ModelChoice } from '@shared/types'
+import { activeModels, canUse, getModel, speedOptions } from '../ai/providers'
+import { getCloudStatus } from '../cloud'
+import type { ModelChoice, Settings } from '@shared/types'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
 import { ask, onManualLiveAnswer, onSessionReset, whenIdle } from '../session'
 import { SPEAKER } from '@shared/live'
@@ -61,19 +60,19 @@ let answered: string[] = []
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** The classifier runs on the backup model when there is one: it's usually the fast one, and it keeps the main model's free quota for answers. */
-async function classifierModel(): Promise<ModelChoice> {
-  const settings = getSettings()
-  const backup = settings.backupModel
-  if (backup?.modelId && (!providerInfo(backup.provider).needsKey || (await getApiKey(backup.provider)))) return backup
-  return settings.answerModel
+async function classifierModel(settings: Settings): Promise<ModelChoice> {
+  const { answer, backup } = activeModels(settings)
+  if (backup?.modelId && (await canUse(backup, settings))) return backup
+  return answer
 }
 
 async function classify(turn: FinalTurn): Promise<z.infer<typeof triageSchema> | null> {
   const settings = getSettings()
-  const choice = await classifierModel()
+  const choice = await classifierModel(settings)
   try {
     const { output } = await generateText({
-      model: await getModel(choice, settings),
+      // Shadow Cloud doesn't charge for this check (it's capped per hour instead).
+      model: await getModel(choice, settings, { id: crypto.randomUUID(), kind: 'classify' }),
       providerOptions: speedOptions(choice, 'classify'),
       instructions: TRIAGE_PROMPT,
       prompt: `RECENT TRANSCRIPT (oldest → newest):
@@ -101,6 +100,12 @@ async function consider(turn: FinalTurn) {
   // stops listening, and that's exactly the question they want answered.
   const settings = getSettings()
   if (!settings.autoAnswer) return
+  // Out of Shadow Cloud credits: stay quiet. A paywall nobody asked for would feel like spam;
+  // pressing the hotkey still shows it.
+  if (settings.source === 'cloud') {
+    const cloud = getCloudStatus()
+    if (cloud.balance !== null && cloud.balance < cloud.creditsPerAnswer) return
+  }
   if (turn.source === 'mic' && settings.answerFrom !== 'anyone') return
   if (!looksLikeQuestion(turn.text)) return
 

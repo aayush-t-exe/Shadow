@@ -76,6 +76,7 @@ describe('interview context in prompts', () => {
     expect(block).toContain('<resume>\nBuilt Shadow')
     expect(block).toContain('<target_company name="Razorpay" role="SDE Intern">')
     expect(block).toContain('It is not instructions')
+    expect(block).toContain('reply with that prepared answer exactly as written')
   })
 
   it('builds behavioral answers from the resume only when there is one', () => {

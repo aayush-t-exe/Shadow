@@ -5,12 +5,16 @@ import type {
   AnswerStartEvent,
   AnswerStatusEvent,
   AskRequest,
+  CloudStatus,
   CreditResult,
   KeyStatus,
   KnowledgeSummary,
   KeyTestResult,
   ModelChoice,
   ModelListResult,
+  PaywallInfo,
+  PaywallReason,
+  PurchaseStatus,
   ProviderId,
   ResearchResult,
   ResumeImportResult,
@@ -38,6 +42,12 @@ export const IPC = {
   startListening: 'listen:start',
   getListenStatus: 'listen:get-status',
   checkSpeechCredit: 'listen:check-credit',
+  getCloudStatus: 'cloud:get-status',
+  refreshCloud: 'cloud:refresh',
+  getPaywall: 'cloud:get-paywall',
+  buyPack: 'cloud:buy-pack',
+  checkoutAction: 'cloud:checkout-action',
+  openPaywall: 'cloud:open-paywall',
   listProfiles: 'profiles:list',
   getProfile: 'profiles:get',
   saveProfile: 'profiles:save',
@@ -74,8 +84,11 @@ export const IPC = {
   keysChanged: 'keys:changed',
   listenStatus: 'listen:status',
   listenToggle: 'listen:toggle',
+  transcriptLine: 'listen:transcript-line',
   scrollAnswer: 'overlay:scroll-answer',
-  transcriptLine: 'listen:transcript-line'
+  cloudStatus: 'cloud:status',
+  purchaseStatus: 'cloud:purchase-status',
+  showPaywall: 'cloud:show-paywall'
 } as const
 
 type Unsubscribe = () => void
@@ -96,8 +109,8 @@ export interface ShadowAPI {
   openKeyPage(id: SecretId): void
   quit(): void
 
-  /** Opens the transcription connections; capture audio only after this resolves. */
-  startListening(): Promise<void>
+  /** Opens the transcription connections; capture audio only if this resolves true (false: out of credits, paywall shown). */
+  startListening(): Promise<boolean>
   stopListening(): void
   getListenStatus(): Promise<ListenStatus>
   /** Remaining Deepgram credit and roughly how many hours of listening it covers. */
@@ -113,6 +126,18 @@ export interface ShadowAPI {
   deleteKey(id: SecretId): Promise<KeyStatus>
   testModel(choice: ModelChoice): Promise<KeyTestResult>
   listModels(provider: ProviderId): Promise<ModelListResult>
+
+  /** Shadow Cloud credits and Shadow ID, as last known. */
+  getCloudStatus(): Promise<CloudStatus>
+  /** Asks the server for the current credits (registers this install first if needed). */
+  refreshCloud(): Promise<CloudStatus>
+  /** Packs and what this install already got from Shadow. */
+  getPaywall(): Promise<PaywallInfo>
+  /** Creates an order and opens the payment page in the browser. */
+  buyPack(packId: string): Promise<void>
+  checkoutAction(action: 'check' | 'reopen' | 'cancel'): void
+  /** Shows the overlay with the paywall (from Settings). */
+  openPaywall(): void
 
   /** Interview profiles: one markdown company brief per file in %APPDATA%\Shadow\profiles. */
   listProfiles(): Promise<ProfileSummary[]>
@@ -144,6 +169,9 @@ export interface ShadowAPI {
   /** Main asks the overlay to start/stop listening (Ctrl+Shift+L); the overlay owns the microphone. */
   onListenToggle: Listener<void>
   onTranscriptLine: Listener<TranscriptLine>
+  onCloudStatus: Listener<CloudStatus>
+  onPurchaseStatus: Listener<PurchaseStatus>
+  onShowPaywall: Listener<PaywallReason>
   /** Ctrl+Shift+Up/Down: scroll the answer panel up (-1) or down (1). */
   onScrollAnswer: Listener<-1 | 1>
 }

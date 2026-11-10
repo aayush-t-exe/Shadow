@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2, Camera, EyeOff, GripVertical, MessageSquare, Settings, Sparkles, Wand2 } from 'lucide-react'
 import { hotkeyFor, keycaps, type HotkeyAction } from '@shared/hotkeys'
-import type { CodeLanguage } from '@shared/types'
 import { ANSWER_STYLES } from '@shared/profile'
 import { Keycaps } from '../components/Keycaps'
 import { Logo } from '../components/Logo'
@@ -11,7 +10,6 @@ import { ListenToggle } from './ListenToggle'
 const tip = (label: string, action: HotkeyAction) => `${label}  (${keycaps(hotkeyFor(action).accelerator).join('+')})`
 
 export function CommandPill() {
-  const language = useOverlay((s) => s.settings?.language ?? 'python')
   const openPanel = useOverlay((s) => s.openPanel)
 
   const answerStyle = useOverlay((s) => s.settings?.answerStyle ?? 'standard')
@@ -22,7 +20,6 @@ export function CommandPill() {
     if (activeProfile) void window.shadow.getProfile(activeProfile).then((p) => setCompany(p?.company ?? null))
   }, [activeProfile])
 
-  const setLanguage = (lang: CodeLanguage) => void window.shadow.setSettings({ language: lang })
   const style = ANSWER_STYLES.find((s) => s.id === answerStyle) ?? ANSWER_STYLES[0]
   const nextStyle = () => {
     const next = ANSWER_STYLES[(ANSWER_STYLES.indexOf(style) + 1) % ANSWER_STYLES.length]
@@ -50,14 +47,6 @@ export function CommandPill() {
       <ListenToggle />
 
       <span className="divider" />
-
-      <span className="segmented" role="group" aria-label="Answer language">
-        {(['python', 'java'] as const).map((lang) => (
-          <button key={lang} aria-pressed={language === lang} onClick={() => setLanguage(lang)}>
-            {lang === 'python' ? 'Python' : 'Java'}
-          </button>
-        ))}
-      </span>
 
       <button className="btn" title={`Answer style: ${style.hint}. Click for the next style.`} onClick={nextStyle}>
         <Wand2 /> {style.label}

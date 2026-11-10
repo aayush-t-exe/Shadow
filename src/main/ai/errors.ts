@@ -11,8 +11,10 @@ export class ShadowError extends Error {
   }
 }
 
+export const NO_CREDITS_MESSAGE = "You've used all your Shadow Cloud credits."
+
 /** Maps any thrown value to a short, key-free message the overlay can show. */
-export function toUserError(err: unknown, model: ModelChoice): { code: ErrorCode; message: string } {
+export function toUserError(err: unknown, model: ModelChoice, cloud = false): { code: ErrorCode; message: string } {
   if (err instanceof ShadowError) return { code: err.code, message: err.message }
 
   const label = providerInfo(model.provider).label
@@ -22,6 +24,17 @@ export function toUserError(err: unknown, model: ModelChoice): { code: ErrorCode
       ? (inner as { statusCode?: number }).statusCode
       : undefined
   const text = inner instanceof Error ? inner.message : String(inner)
+
+  if (cloud) {
+    // The server writes its own short messages; provider names and key advice don't apply.
+    if (status === 402) return { code: 'NO_CREDITS', message: NO_CREDITS_MESSAGE }
+    if (status === 429) return { code: 'CLOUD', message: 'Shadow Cloud is busy for a moment. Try again in a few seconds.' }
+    if (status !== undefined) return { code: 'CLOUD', message: redact(text).slice(0, 300) || `Shadow Cloud returned an error (${status}).` }
+    if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|fetch failed|network/i.test(text)) {
+      return { code: 'CLOUD', message: "Couldn't reach Shadow Cloud. Check your internet connection." }
+    }
+    return { code: 'UNKNOWN', message: redact(text).slice(0, 300) }
+  }
 
   if (status === 401 || status === 403) return { code: 'AUTH', message: `${label} rejected the API key. Check it in Settings.` }
   if (status === 429) return { code: 'RATE_LIMIT', message: `${label} rate limit reached. Wait a minute or switch provider in Settings.` }

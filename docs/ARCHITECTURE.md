@@ -37,6 +37,29 @@ Shadow is an Electron app with two kinds of process:
 
 They talk over a typed IPC bridge. Every channel name lives in one file (`src/shared/api.ts`), so the two sides can't drift apart.
 
+## Shadow Cloud and the two editions
+
+The installer people download is the **public edition**: every answer goes through Shadow Cloud, so nobody needs an API key. The **owner edition** (`npm run dev`, `npm run dist:owner`) also keeps "use my own API keys" with every provider and the key vault below. The edition is fixed at build time (`src/shared/edition.ts`).
+
+```mermaid
+flowchart LR
+  APP[Shadow app<br/>main process] -- device token --> W[Shadow Cloud<br/>Cloudflare Worker]
+  W --> D1[(D1: devices · credits<br/>usage · orders)]
+  W -- holds the keys --> G[Gemini / Groq]
+  W -- 1-minute token --> APP
+  APP -- audio --> DG[Deepgram]
+  RZ[Razorpay] -- order.paid webhook --> W
+```
+
+- **No sign-up.** On first launch the app registers itself and gets a readable Shadow ID plus 20 free credits. A reinstall on the same PC gets the same account back (a hashed Windows MachineGuid).
+- **Credits are charged per answer, not per request.** The main model, the backup model racing it, the screenshot reader and finishing a cut-off answer all share one action id, charged once.
+- **Listen** gets a short-lived Deepgram token from the server, so audio goes straight to Deepgram. Each minute is paid up front and refunded if the connection fails.
+- **Payments:** the server creates a Razorpay order, the browser pays on the server's checkout page, and credits are added once the signature, the order status or the `order.paid` webhook confirms it (whichever comes first, and only once).
+- **Out of credits:** the question and its screenshots are parked, the paywall shows, and the app polls until the payment lands, then answers the parked question.
+- A daily cost cap, a per-network limit on free credits and per-hour limits keep a bug or abuse from running up the AI bill.
+
+Details, screenshots and deployment: [Shadow Cloud](SHADOW-CLOUD.md) and [`server/README.md`](../server/README.md).
+
 ## Security model
 
 A 2025 security write-up showed that a link inside one commercial overlay's AI answer could quietly take screenshots and record audio, because its renderer could call anything in the main process. Shadow is built so that can't happen:
@@ -59,7 +82,7 @@ DPAPI protects keys from other Windows users and from copying the config file to
 
 1. The hotkey captures the monitor under the mouse at full physical resolution, correcting for Windows display scaling. Shadow hides itself for about 160 ms so it isn't in its own screenshot.
 2. Up to four screenshots queue up, for problems that need scrolling.
-3. The prompt is built from small blocks: base instructions, Python or Java rules, and length. It asks for fixed `##` sections (Problem, Approach, Code, Complexity, Edge Cases, Dry Run) instead of JSON, because markdown streams cleanly and even small local models follow it.
+3. The prompt is built from small blocks: base instructions, how to pick the code language (the one the user asks for, then the one the problem's starter code uses, then the user's preferred language), per-language rules, and length. It asks for fixed `##` sections (Problem, Approach, Code, Complexity, Edge Cases, Dry Run) instead of JSON, because markdown streams cleanly and even small local models follow it.
 4. If the chosen model can't read images, a vision model first turns the screenshots into text (a two-stage pipeline).
 5. Tokens stream through the [Vercel AI SDK](https://ai-sdk.dev) and are batched every 30 ms before crossing IPC, then rendered by [Streamdown](https://github.com/vercel/streamdown) with Shiki highlighting, which repairs half-finished markdown mid-stream.
 6. History is kept text-only, so follow-ups don't re-upload screenshots and waste free-tier quota.
@@ -99,6 +122,7 @@ The overlay is a single transparent, always-on-top window, and most of it is emp
 
 - `npm test` runs the unit tests (Vitest). They cover the prompt builders, question detection (including real Deepgram transcripts with their mishearings, and Hindi), echo similarity, joining multi-part questions, code-block extraction mid-stream, and cursor hit-testing.
 - `npm run typecheck` runs strict TypeScript for both processes.
+- `cd server && npm test` runs the server's unit tests; `npm run e2e` there runs the real server under `wrangler dev` against fake AI providers, and `node scripts/app-e2e.mjs` drives the real app through registration, answers, the paywall and a test payment.
 - `npm run showcase` renders the README screenshots and the demo GIF from the real React components with sample data, in a hidden window (`src/renderer/src/showcase`, `scripts/showcase`).
 
 ## Project layout
@@ -106,11 +130,12 @@ The overlay is a single transparent, always-on-top window, and most of it is emp
 ```
 src/
   main/        hotkeys, windows, screenshots, session, settings, key vault, IPC
-    ai/        providers, prompts, error mapping
+    ai/        providers, prompts, error mapping, company research
     live/      audio permissions, Deepgram client, listening, auto-answer
   preload/     the typed bridge between page and main
   renderer/    overlay and settings UI (React), audio worklet, screenshot studio
   shared/      types and pure logic shared by both sides (and unit-tested)
+server/        Shadow Cloud: Cloudflare Worker + D1, credits, checkout, Razorpay
 scripts/       dev launcher, icon generator, screenshot studio runner
 research/      the research the design is based on
 ```

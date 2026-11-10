@@ -60,6 +60,7 @@ export const HINGLISH_ANSWER = `**In short:** React Native ek framework hai jiss
 const base = {
   provider: 'gemini' as const,
   modelId: 'gemini-3.5-flash-lite',
+  cloud: true,
   status: null,
   aborted: false,
   error: null
@@ -101,12 +102,39 @@ export const hindiTurn: Turn = {
   totalMs: 2100
 }
 
+export const INTERVIEW_ANSWER = `**Situation:** In my second year, the lunch queue at our college canteen took about 20 minutes, and people were skipping lunch to make it to class.
+
+**Task:** I wanted students to order ahead and just pick up their food, without the canteen staff learning anything complicated.
+
+**Action:** I built Canteen Queue in React Native with Supabase. Students order and pay in the app, and the counter gets a simple list sorted by pickup time. I tested it with the staff for a week first and cut the order screen down to three taps.
+
+**Result:** About 600 students used it in the first month, and the queue went from around 20 minutes to about 5.
+`
+
+export const interviewTurn: Turn = {
+  ...base,
+  id: 'interview',
+  mode: 'live',
+  prompt: "🎙 Tell me about a project you're proud of.",
+  screenshotCount: 0,
+  answer: INTERVIEW_ANSWER,
+  streaming: false,
+  firstTokenMs: 690,
+  totalMs: 2300
+}
+
 const line = (id: string, source: 'mic' | 'system', text: string, at: number): TranscriptLine => ({ id, source, text, final: true, at })
 
 export const liveTranscript: TranscriptLine[] = [
   line('1', 'system', "Nice work on the linked list one. Let's switch to some theory for a bit.", 182_000),
   line('2', 'mic', 'Sure, go ahead.', 186_000),
   line('3', 'system', "What's the difference between a process and a thread?", 191_000)
+]
+
+export const interviewTranscript: TranscriptLine[] = [
+  line('1', 'system', "Thanks for walking me through that sorting problem. Let's talk about your projects.", 610_000),
+  line('2', 'mic', 'Sure.', 614_000),
+  line('3', 'system', "Tell me about a project you're proud of.", 618_000)
 ]
 
 export const hindiTranscript: TranscriptLine[] = [

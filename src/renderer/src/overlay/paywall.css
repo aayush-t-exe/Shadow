@@ -1,0 +1,608 @@
+/* Shadow Cloud paywall (design K: orbs + your usage + calm layout). Approved 10 Nov 2026;
+   mockups in Desktop/Shadow-Paywall-Designs. The one glowing object is the chosen orb. */
+
+/* The paywall is taller than an answer: let the panel use the window's full height. */
+.panel:has(.pw) {
+  max-height: 724px;
+}
+
+.pw {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 0 2px;
+}
+.pw-note {
+  color: var(--sh-text-3);
+  font-size: 12px;
+}
+.pw-link {
+  color: #b3a9ff;
+  font-weight: 600;
+}
+.pw-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- what your credits already got you ---------- */
+.pw-usage {
+  display: grid;
+  grid-template-columns: 1fr 190px;
+  gap: 16px;
+  align-items: end;
+  align-self: stretch;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1a1b22, #121318);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.pw-kicker {
+  color: var(--sh-text-3);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+.pw-big {
+  margin-top: 4px;
+  font: 700 34px/1 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+  letter-spacing: -0.03em;
+}
+.pw-big small {
+  color: var(--sh-text-2);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.pw-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 9px;
+  color: var(--sh-text-3);
+  font-size: 11.5px;
+}
+.pw-stats b {
+  color: var(--sh-text);
+}
+.pw-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  height: 76px;
+  align-items: end;
+}
+.pw-bar {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.pw-bar i {
+  display: block;
+  width: 100%;
+  border-radius: 8px / 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.pw-bar span {
+  margin-top: 4px;
+  color: var(--sh-text-3);
+  font-size: 9.5px;
+}
+.pw-bar.hi i {
+  background: linear-gradient(90deg, #4a3bdc, #9d92ff 45%, #e1dcff 55%, #7466ff 75%, #3b2fb0);
+  box-shadow: 0 0 18px rgba(120, 100, 255, 0.8);
+}
+.pw-bar.hi span {
+  color: #c9c2ff;
+}
+
+/* ---------- text ---------- */
+.pw-title {
+  margin: 4px 0 0;
+  font: 600 18px/1.25 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  color: #f4f4f8;
+  text-align: center;
+}
+.pw-sub {
+  max-width: 440px;
+  margin: 4px 0 0;
+  color: var(--sh-text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+.pw-title.left,
+.pw-sub.left {
+  text-align: left;
+}
+
+/* ---------- the orbs ---------- */
+.pw-orbs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-self: stretch;
+  margin: 12px 0;
+}
+.pw-glow {
+  position: absolute;
+  left: 50%;
+  top: -16px;
+  width: 300px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(120, 95, 255, 0.5), transparent 65%);
+  filter: blur(10px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.pw-glow.small {
+  top: -12px;
+  width: 190px;
+  height: 140px;
+}
+.pw-opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0 10px;
+  border-radius: 18px;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.pw-opt.on {
+  background: radial-gradient(80% 70% at 50% 35%, rgba(120, 95, 255, 0.18), transparent 70%);
+  box-shadow: inset 0 0 0 1px rgba(150, 135, 255, 0.35);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pw-opt:not(.on):hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+.pw-opt:focus-visible {
+  outline: 2px solid #8f82ff;
+  outline-offset: 2px;
+}
+.pw-stage {
+  position: relative;
+  display: grid;
+  width: 120px;
+  height: 96px;
+  place-items: center;
+}
+.pw-stage.small {
+  flex: none;
+  width: 150px;
+  height: 124px;
+}
+.pw-orb {
+  display: block;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.08) 22%, transparent 38%),
+    radial-gradient(circle at 60% 70%, #3a3550 0%, #1b1926 60%, #0e0d14 100%);
+  box-shadow:
+    inset 0 -8px 18px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 12px 26px rgba(0, 0, 0, 0.55);
+}
+.pw-orb.lit {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.15) 20%, transparent 36%),
+    radial-gradient(circle at 60% 70%, #8f82ff 0%, #5b4be8 45%, #22177a 100%);
+  box-shadow:
+    inset 0 -10px 22px rgba(20, 10, 80, 0.6),
+    inset 0 0 0 1px rgba(220, 215, 255, 0.35),
+    0 0 40px rgba(120, 95, 255, 0.7),
+    0 0 90px rgba(120, 95, 255, 0.35);
+}
+.pw-ring {
+  position: absolute;
+  width: 112px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(200, 190, 255, 0.55);
+  box-shadow: 0 0 12px rgba(150, 130, 255, 0.5);
+  transform: rotate(-14deg);
+}
+.pw-stage.small .pw-ring {
+  width: 140px;
+  height: 38px;
+}
+.pw-cred {
+  margin-top: 4px;
+  color: var(--sh-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pw-meta {
+  color: var(--sh-text-3);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.pw-opt.on .pw-meta {
+  color: #c9c2ff;
+}
+.pw-price {
+  margin-top: 6px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sh-text);
+  font: 600 13.5px var(--sh-font);
+}
+.pw-opt.on .pw-price {
+  background: #efeaff;
+  color: #2c1f8f;
+  box-shadow: 0 6px 16px rgba(110, 90, 255, 0.45);
+}
+
+/* ---------- buttons and fine print ---------- */
+.pw-cta {
+  align-self: stretch;
+  height: 40px;
+  border-radius: 999px;
+  color: #fff;
+  font: 600 14px var(--sh-font);
+  background: linear-gradient(180deg, #7a6cff 0%, #4b3bdc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 1px #4c3fd0,
+    0 12px 30px -10px rgba(110, 90, 255, 0.9);
+  transition: transform 140ms var(--sh-ease-out);
+}
+.pw-cta:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.pw-cta:disabled {
+  opacity: 0.5;
+}
+.pw-later {
+  margin-top: 4px;
+  padding: 6px 12px;
+  color: var(--sh-text-2);
+  font: 500 12.5px var(--sh-font);
+}
+.pw-later.inline {
+  margin: 0;
+}
+.pw-later:hover {
+  color: var(--sh-text);
+}
+.pw-fine,
+.pw-error {
+  margin: 6px 0 0;
+  color: var(--sh-text-3);
+  font-size: 11.5px;
+}
+.pw-error {
+  color: var(--sh-danger-text);
+  text-align: center;
+}
+.pw-secure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: stretch;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sh-hairline);
+  color: var(--sh-text-3);
+  font-size: 11px;
+}
+.pw-secure svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+/* ---------- waiting for the payment ---------- */
+.pw-wait {
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  padding: 6px 2px 4px;
+}
+.pw-wait-text {
+  flex: 1;
+  min-width: 0;
+}
+.pw-shimmer {
+  position: relative;
+  height: 3px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.pw-shimmer i {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, #8f82ff, transparent);
+  animation: pw-sweep 1.4s linear infinite;
+}
+@keyframes pw-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+.pw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.pw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--sh-text);
+  font: 600 12px var(--sh-font);
+  background: var(--sh-surface-raised);
+  box-shadow:
+    var(--sh-btn-inset),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.pw-btn.ghost {
+  background: transparent;
+  color: var(--sh-text-2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.pw-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- payment received: the orb lights up (about 4 s, once per payment) ---------- */
+.pw-paid {
+  padding-bottom: 6px;
+}
+.pw-paid-stage {
+  position: relative;
+  width: 240px;
+  height: 170px;
+}
+.pw-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 320px;
+  height: 220px;
+  margin: -110px 0 0 -160px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(120, 95, 255, 0.55), transparent 65%);
+  filter: blur(10px);
+  animation: pw-halo-in 2400ms var(--sh-ease-out) both;
+}
+.pw-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 232, 255, 0.85) 0%, rgba(140, 120, 255, 0.55) 30%, transparent 65%);
+  opacity: 0;
+  animation: pw-burst 3600ms var(--sh-ease-out) both;
+}
+.pw-paid-orb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 124px;
+  height: 124px;
+  margin: -62px 0 0 -62px;
+  animation: pw-pop 2080ms var(--sh-ease-spring) both;
+}
+.pw-paid-orb i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.pw-paid-orb .off {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.06) 22%, transparent 38%),
+    radial-gradient(circle at 60% 70%, #34304a 0%, #1b1926 60%, #0e0d14 100%);
+  box-shadow:
+    inset 0 -10px 22px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.pw-paid-orb .lit {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.15) 20%, transparent 36%),
+    radial-gradient(circle at 60% 70%, #8f82ff 0%, #5b4be8 45%, #22177a 100%);
+  box-shadow:
+    inset 0 -10px 22px rgba(20, 10, 80, 0.6),
+    inset 0 0 0 1px rgba(220, 215, 255, 0.35),
+    0 0 40px rgba(120, 95, 255, 0.7),
+    0 0 90px rgba(120, 95, 255, 0.35);
+  animation: pw-fade 1800ms var(--sh-ease-out) both;
+}
+.pw-paid-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200px;
+  height: 52px;
+  margin: -26px 0 0 -100px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(200, 190, 255, 0.55);
+  box-shadow: 0 0 12px rgba(150, 130, 255, 0.5);
+  transform: rotate(-14deg);
+  animation: pw-ring-in 2240ms var(--sh-ease-out) 480ms both;
+}
+.pw-num {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 30px 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(30, 10, 120, 0.8);
+  animation: pw-num-pop 1520ms var(--sh-ease-spring) 600ms both;
+}
+.pw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 4px 11px 4px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.45);
+  color: #4ee6a8;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pw-badge svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+.pw-reveal {
+  animation: pw-rise 1040ms var(--sh-ease-out) both;
+}
+.pw-reveal.d1 {
+  animation-delay: 1520ms;
+}
+.pw-reveal.d2 {
+  animation-delay: 1760ms;
+}
+.pw-reveal.d3 {
+  animation-delay: 2000ms;
+}
+@keyframes pw-pop {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes pw-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pw-halo-in {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pw-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes pw-ring-in {
+  from {
+    opacity: 0.25;
+    transform: rotate(-14deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-14deg) scale(1);
+  }
+}
+@keyframes pw-num-pop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes pw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduce motion: no pop, burst, sweep or slide. The orb lights up and the text fades in. */
+@media (prefers-reduced-motion: reduce) {
+  .pw-paid-orb,
+  .pw-burst,
+  .pw-num,
+  .pw-halo,
+  .pw-paid-ring {
+    animation: none;
+  }
+  .pw-paid-orb .lit,
+  .pw-reveal {
+    animation: pw-fade 200ms ease both;
+  }
+  .pw-shimmer i {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+/* ---------- running low: a tiny orb in the panel header ---------- */
+.pw-low {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: var(--sh-text-2);
+  font: 500 11px var(--sh-font);
+}
+.pw-low b {
+  color: #c9c2ff;
+  font-weight: 600;
+}
+.pw-low i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0, #8f82ff 35%, #3b2fb0 100%);
+  box-shadow: 0 0 8px rgba(130, 110, 255, 0.9);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pw-low:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+}

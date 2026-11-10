@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const require = createRequire(import.meta.url)
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const electron = require('electron') // the path to the Electron binary
-const env = { ...process.env, SHADOW_SHOWCASE: '1' }
+const env = { ...process.env, SHADOW_SHOWCASE: '1', SHADOW_EDITION: 'public', SHADOW_CLOUD_URL: 'http://127.0.0.1:8787' }
 delete env.ELECTRON_RUN_AS_NODE // see scripts/electron-vite.mjs
 
 function run(command, args) {

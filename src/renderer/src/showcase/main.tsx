@@ -15,8 +15,8 @@ import { Toast } from '../overlay/Toast'
 import { Welcome } from '../overlay/Welcome'
 import { useOverlay, type Turn } from '../overlay/store'
 import { SettingsApp } from '../settings/SettingsApp'
-import { demoSettings } from './mock'
-import { SOLVE_ANSWER, hindiTranscript, hindiTurn, liveTranscript, liveTurn, solveTurn } from './scenes'
+import { cloudStatus, demoSettings } from './mock'
+import { SOLVE_ANSWER, hindiTranscript, hindiTurn, interviewTranscript, interviewTurn, liveTranscript, liveTurn, solveTurn } from './scenes'
 
 declare global {
   interface Window {
@@ -108,7 +108,8 @@ function PracticeBackdrop() {
   )
 }
 
-function CallBackdrop({ mentor, initials }: { mentor: string; initials: string }) {
+function CallBackdrop({ mentor, initials, title = 'Study session · DSA revision · 34:12' }: { mentor: string; initials: string; title?: string }) {
+  const [name, ...rest] = title.split(' · ')
   return (
     <>
       <div className="wallpaper" />
@@ -119,7 +120,7 @@ function CallBackdrop({ mentor, initials }: { mentor: string; initials: string }
             <i />
             <i />
           </span>
-          <b>Study session</b> · DSA revision · 34:12
+          <b>{name}</b> · {rest.join(' · ')}
         </div>
         <div className="call">
           <div className="tile speaking">
@@ -167,7 +168,7 @@ function OverlayLayer() {
 
 // ---------------- scenes ----------------
 
-type SceneId = 'hero' | 'listen' | 'hindi' | 'welcome' | 'settings' | 'social' | 'demo'
+type SceneId = 'hero' | 'listen' | 'hindi' | 'interview' | 'welcome' | 'settings' | 'prep' | 'social' | 'demo'
 
 const W = 1440
 const H = 900
@@ -175,6 +176,7 @@ const H = 900
 function setOverlay(patch: Partial<ReturnType<typeof useOverlay.getState>>) {
   useOverlay.setState({
     settings: demoSettings,
+    cloud: cloudStatus,
     keys: { gemini: { last4: 'xQ2k' }, deepgram: { last4: 'a91c' } },
     listen: { state: 'off', startedAt: null, warning: null },
     levels: { mic: 0, system: 0 },
@@ -215,7 +217,15 @@ function Scene({ id }: { id: SceneId }) {
           <OverlayLayer />
         </div>
       )
+    case 'interview':
+      return (
+        <div className="scene" style={size}>
+          <CallBackdrop mentor="Interviewer" initials="I" title="Mock interview · Practice round · 12:40" />
+          <OverlayLayer />
+        </div>
+      )
     case 'settings':
+    case 'prep':
       return (
         <div className="scene" style={size}>
           <div className="wallpaper" />
@@ -244,8 +254,9 @@ function Scene({ id }: { id: SceneId }) {
             </div>
             <p>One hotkey from stuck to understood.</p>
             <div className="chips">
-              <span>Free &amp; open source</span>
-              <span>Python · Java</span>
+              <span>Open source</span>
+              <span>No API key</span>
+              <span>Any language</span>
             </div>
           </div>
           <div className="social-shot">
@@ -269,8 +280,23 @@ function prepare(id: SceneId) {
     case 'hindi':
       setOverlay({ listen: live, levels: { mic: 0.1, system: 0.55 }, transcript: hindiTranscript, turns: [hindiTurn], panelOpen: true })
       break
+    case 'interview':
+      setOverlay({
+        settings: { ...demoSettings, answerStyle: 'star', activeProfile: 'northwind-sde-intern' },
+        listen: live,
+        levels: { mic: 0.12, system: 0.6 },
+        transcript: interviewTranscript,
+        turns: [interviewTurn],
+        panelOpen: true
+      })
+      break
     case 'welcome':
-      setOverlay({ keys: {} })
+      setOverlay({ keys: {}, cloud: { ...cloudStatus, balance: 20 } })
+      break
+    case 'prep':
+      // Settings reads them through the mock bridge: open the sample company brief.
+      demoSettings.activeProfile = 'northwind-sde-intern'
+      setOverlay({})
       break
     case 'settings':
     case 'demo':
@@ -330,6 +356,10 @@ function demoFrame(i: number): { delay: number; flash?: boolean } {
 
 const sceneId = (new URLSearchParams(location.search).get('scene') ?? 'hero') as SceneId
 document.body.classList.add('showcase')
+// Every scene starts as a first run (e.g. the welcome card is remembered as dismissed once a question is asked).
+try {
+  localStorage.clear()
+} catch {}
 prepare(sceneId)
 
 const root = createRoot(document.getElementById('root')!)
@@ -360,6 +390,11 @@ void (async () => {
   await document.fonts.ready
   await sleep(1800) // Shiki loads its grammar and theme asynchronously
   if (sceneId === 'hero' || sceneId === 'social') scrollAnswerTo('Approach')
+  if (sceneId === 'prep') {
+    const scroller = document.querySelector<HTMLElement>('.settings-scroll')
+    const h2 = [...document.querySelectorAll('.settings-scroll h2')].find((h) => h.textContent?.trim() === 'Interview prep')
+    if (scroller && h2) scroller.scrollTop += h2.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 24
+  }
   await nextPaint()
   document.title = 'ready'
 })()

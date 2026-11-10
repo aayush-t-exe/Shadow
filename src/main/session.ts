@@ -9,10 +9,10 @@ import { spokeHindi } from '@shared/question'
 import { getSettings } from './settings'
 import { loadInterviewContext } from './profiles'
 import { captureScreen, type Screenshot } from './screenshots'
-import { getModel, speedOptions } from './ai/providers'
+import { activeModels, canUse, getModel, speedOptions } from './ai/providers'
 import { raceText, type Finish } from './ai/race'
-import { getApiKey } from './secrets'
-import { ShadowError, toUserError } from './ai/errors'
+import { getCloudStatus, recordFirstToken, refreshCloud, type CloudAction } from './cloud'
+import { NO_CREDITS_MESSAGE, ShadowError, toUserError } from './ai/errors'
 import {
   EXTRACT_PROMPT,
   CONTINUE_CUT_OFF,
@@ -45,6 +45,8 @@ let screenshots: Screenshot[] = []
 let history: ModelMessage[] = []
 let currentAnswer = ''
 let inflight: { id: string; controller: AbortController } | null = null
+/** A question that hit the paywall, with its screenshots: answered automatically once credits arrive. */
+let parked: { req: AskRequest; shots: Screenshot[] } | null = null
 
 const publicScreenshots = (): ScreenshotInfo[] => screenshots.map(({ id, thumb }) => ({ id, thumb }))
 const emitScreenshots = () => broadcast(IPC.screenshots, publicScreenshots())
@@ -77,6 +79,7 @@ export function resetSession(): void {
   cancelAnswer()
   copyWhenCodeCompletes = false
   screenshots = []
+  parked = null
   history = []
   currentAnswer = ''
   clearTranscript()
@@ -132,6 +135,28 @@ export function smartAnswer(): Promise<void> {
 
 export const isAnswering = () => inflight !== null
 
+/**
+ * After a purchase: answers the question that hit the paywall, with the screenshots it had.
+ * Returns true if there was one.
+ */
+export function resumePending(): boolean {
+  const saved = parked
+  parked = null
+  if (!saved) return false
+  screenshots = [...saved.shots, ...screenshots].slice(-MAX_SCREENSHOTS)
+  emitScreenshots()
+  void ask(saved.req)
+  return true
+}
+
+/** Shadow Cloud: true when the credits can't cover an answer (checks the server before saying so). */
+async function outOfCredits(): Promise<boolean> {
+  const status = getCloudStatus()
+  if (status.balance === null || status.balance >= status.creditsPerAnswer) return false
+  const fresh = await refreshCloud()
+  return fresh.balance !== null && fresh.balance < fresh.creditsPerAnswer
+}
+
 const idleWaiters: Array<() => void> = []
 /** Resolves once no answer is streaming. Auto-answers queue behind the current answer instead of cutting it off. */
 export function whenIdle(): Promise<void> {
@@ -142,22 +167,32 @@ export function whenIdle(): Promise<void> {
 const imageParts = (shots: Screenshot[]) =>
   shots.map((s) => ({ type: 'file' as const, mediaType: 'image/png', data: s.png }))
 
-/** The backup model, if one is set, has a key, and can handle this request. */
-async function usableBackup(settings: Settings, sendsImages: boolean): Promise<ModelChoice | undefined> {
-  const backup = settings.backupModel
+/** The backup model, if one is set, is usable, and can handle this request. */
+async function usableBackup(
+  settings: Settings,
+  answer: ModelChoice,
+  backup: ModelChoice | null,
+  sendsImages: boolean
+): Promise<ModelChoice | undefined> {
   if (!backup?.modelId || (sendsImages && !backup.vision)) return undefined
-  if (backup.provider === settings.answerModel.provider && backup.modelId === settings.answerModel.modelId) return undefined
-  if (providerInfo(backup.provider).needsKey && !(await getApiKey(backup.provider))) return undefined
+  if (backup.provider === answer.provider && backup.modelId === answer.modelId) return undefined
+  if (!(await canUse(backup, settings))) return undefined
   return backup
 }
 
 /** For answer models without vision: have the vision model transcribe the screenshots first. */
-async function transcribeScreenshots(shots: Screenshot[], settings: Settings, signal: AbortSignal): Promise<string> {
-  if (!settings.visionModel.vision) {
+async function transcribeScreenshots(
+  shots: Screenshot[],
+  settings: Settings,
+  vision: ModelChoice,
+  action: CloudAction,
+  signal: AbortSignal
+): Promise<string> {
+  if (!vision.vision) {
     throw new ShadowError('NO_VISION', 'Neither selected model can read images. Pick a vision model in Settings.')
   }
   const { text } = await generateText({
-    model: await getModel(settings.visionModel, settings),
+    model: await getModel(vision, settings, action),
     instructions: EXTRACT_PROMPT,
     messages: [{ role: 'user', content: [{ type: 'text', text: 'Transcribe this problem.' }, ...imageParts(shots)] }],
     maxOutputTokens: 4096,
@@ -221,7 +256,7 @@ export async function ask(req: AskRequest): Promise<void> {
   switch (mode) {
     case 'solve':
       instructions = solvePrompt(promptOptions)
-      userText = solveUserText(shots.length, settings.language)
+      userText = solveUserText(shots.length)
       context = []
       break
     case 'debug':
@@ -247,14 +282,19 @@ export async function ask(req: AskRequest): Promise<void> {
   const controller = new AbortController()
   inflight = { id, controller }
   currentAnswer = ''
-  const model = settings.answerModel
+  const cloud = settings.source === 'cloud'
+  const models = activeModels(settings)
+  const model = models.answer
+  // Every model call for this answer (main, backup, screenshot reader) shares one Shadow Cloud action.
+  const action: CloudAction = { id, kind: mode }
   broadcast(IPC.answerStart, {
     id,
     mode,
     prompt: { solve: 'Solve this problem', debug: 'Debug this', followup: userText, live: `🎙 ${liveQuestion}` }[mode],
     screenshotCount: shots.length,
     provider: model.provider,
-    modelId: model.modelId
+    modelId: model.modelId,
+    cloud
   })
 
   const startedAt = performance.now()
@@ -268,12 +308,19 @@ export async function ask(req: AskRequest): Promise<void> {
   const timer = setInterval(flush, FLUSH_MS)
 
   try {
+    // Shadow Cloud with no credits: don't spend the question. Park it (screenshots too) for after paying.
+    if (cloud && (await outOfCredits())) throw new ShadowError('NO_CREDITS', NO_CREDITS_MESSAGE)
+
     let content: UserContent
     const sentText = languageNote ? `${userText}\n\n${languageNote}` : userText
     if (shots.length > 0 && !model.vision) {
       broadcast(IPC.answerStatus, { id, status: 'Reading screenshots…' })
-      const problem = await transcribeScreenshots(shots, settings, controller.signal)
-      content = [{ type: 'text', text: `${sentText}\n\nThe screenshots, transcribed:\n\n${problem}` }]
+      const problem = await transcribeScreenshots(shots, settings, models.vision, action, controller.signal)
+      content = [{ type: 'text', text: `${sentText}
+
+The screenshots, transcribed:
+
+${problem}` }]
     } else {
       content = [{ type: 'text', text: sentText }, ...imageParts(shots)]
     }
@@ -283,7 +330,7 @@ export async function ask(req: AskRequest): Promise<void> {
     const purpose = mode === 'live' ? 'live' : 'solve'
     // The backup only joins if it can handle this request (it must see images if we're sending them).
     const sendsImages = content.some((part) => typeof part !== 'string' && part.type === 'file')
-    const backup = await usableBackup(settings, sendsImages)
+    const backup = await usableBackup(settings, model, models.backup, sendsImages)
 
     let finish: Finish | undefined
     let winner = model
@@ -294,7 +341,7 @@ export async function ask(req: AskRequest): Promise<void> {
       signal: controller.signal,
       start: async (choice, signal) =>
         streamText({
-          model: await getModel(choice, settings),
+          model: await getModel(choice, settings, action),
           instructions,
           messages,
           maxOutputTokens: 8192,
@@ -306,7 +353,9 @@ export async function ask(req: AskRequest): Promise<void> {
       onHedge: (b) =>
         broadcast(IPC.answerStatus, {
           id,
-          status: `${providerInfo(model.provider).label} is slow right now, also asking ${providerInfo(b.provider).label}…`
+          status: cloud
+            ? 'Taking longer than usual, also trying the backup…'
+            : `${providerInfo(model.provider).label} is slow right now, also asking ${providerInfo(b.provider).label}…`
         }),
       onWinner: (w) => {
         winner = w
@@ -332,7 +381,7 @@ export async function ask(req: AskRequest): Promise<void> {
       broadcast(IPC.answerStatus, { id, status: 'The answer was cut off, finishing it…' })
       try {
         const rest = streamText({
-          model: await getModel(other, settings),
+          model: await getModel(other, settings, action),
           instructions,
           messages: [...messages, { role: 'assistant', content: currentAnswer }, { role: 'user', content: CONTINUE_CUT_OFF }],
           maxOutputTokens: 4096,
@@ -369,13 +418,19 @@ export async function ask(req: AskRequest): Promise<void> {
     const asked = mode === 'live' ? `Question asked in the conversation: ${liveQuestion}` : userText
     const userTurn = shots.length > 0 ? `${asked} [${shots.length} screenshot(s) attached]` : asked
     history = [...context, { role: 'user', content: userTurn }, { role: 'assistant', content: currentAnswer }]
+    if (cloud && firstTokenMs !== null) recordFirstToken(firstTokenMs)
     broadcast(IPC.answerDone, { id, aborted: false, firstTokenMs, totalMs: Math.round(performance.now() - startedAt) })
   } catch (err) {
     flush()
     if (controller.signal.aborted) {
       broadcast(IPC.answerDone, { id, aborted: true, firstTokenMs, totalMs: Math.round(performance.now() - startedAt) })
     } else {
-      broadcast(IPC.answerError, { id, ...toUserError(err, model) })
+      const error = toUserError(err, model, cloud)
+      // Out of credits: keep the question and its screenshots; the paywall shows in its place.
+      if (error.code === 'NO_CREDITS') {
+        parked = { req: { mode, text: mode === 'live' ? liveQuestion : req.text, withScreen: req.withScreen }, shots }
+      }
+      broadcast(IPC.answerError, { id, ...error })
     }
   } finally {
     clearInterval(timer)
