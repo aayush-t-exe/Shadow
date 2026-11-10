@@ -8,7 +8,8 @@ export type ProviderId = 'gemini' | 'groq' | 'openai' | 'anthropic' | 'openroute
  */
 export const CODE_LANGUAGES = ['auto', 'python', 'java', 'cpp', 'c', 'javascript', 'typescript', 'csharp', 'go', 'kotlin', 'rust'] as const
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number]
-export type Verbosity = 'concise' | 'detailed'
+/** How live and follow-up answers are shaped; solve answers use it for length only. */
+export type AnswerStyle = 'standard' | 'concise' | 'bullets' | 'star' | 'detailed'
 
 export interface ModelChoice {
   provider: ProviderId
@@ -24,10 +25,12 @@ export interface ModelChoice {
 export type AnswerSource = 'cloud' | 'keys'
 
 export interface Settings {
-  schemaVersion: 1
+  schemaVersion: 2
   source: AnswerSource
   language: CodeLanguage
-  verbosity: Verbosity
+  answerStyle: AnswerStyle
+  /** Id of the interview profile (company brief) used for live and follow-up answers, or null. */
+  activeProfile: string | null
   answerModel: ModelChoice
   /** Reads screenshots into text when `answerModel` cannot see images. */
   visionModel: ModelChoice
@@ -181,4 +184,12 @@ export interface AnswerErrorEvent {
 
 export type ModelListResult = { ok: true; models: string[] } | { ok: false; message: string }
 export type KeyTestResult = { ok: true; ms: number } | { ok: false; message: string }
+/** What's in %APPDATA%\Shadow\knowledge, for the Settings window. */
+export interface KnowledgeSummary {
+  hasAbout: boolean
+  /** Project names, A–Z. */
+  projects: string[]
+}
+export type ResumeImportResult ={ ok: true; text: string } | { ok: false; message: string } | null
+export type ResearchResult = { ok: true; id: string } | { ok: false; message: string }
 export type CreditResult = { ok: true; usd: number; hoursOfListening: number } | { ok: false; message: string }

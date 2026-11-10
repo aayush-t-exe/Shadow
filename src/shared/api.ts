@@ -8,6 +8,7 @@ import type {
   CloudStatus,
   CreditResult,
   KeyStatus,
+  KnowledgeSummary,
   KeyTestResult,
   ModelChoice,
   ModelListResult,
@@ -15,12 +16,15 @@ import type {
   PaywallReason,
   PurchaseStatus,
   ProviderId,
+  ResearchResult,
+  ResumeImportResult,
   ScreenshotInfo,
   SecretId,
   Settings
 } from './types'
 import type { Rect } from './geometry'
 import type { AudioSourceId, ListenStatus, TranscriptLine } from './live'
+import type { InterviewProfile, ProfileSummary } from './profile'
 
 /** Every IPC channel name lives here so main, preload and renderer can't drift apart. */
 export const IPC = {
@@ -44,6 +48,15 @@ export const IPC = {
   buyPack: 'cloud:buy-pack',
   checkoutAction: 'cloud:checkout-action',
   openPaywall: 'cloud:open-paywall',
+  listProfiles: 'profiles:list',
+  getProfile: 'profiles:get',
+  saveProfile: 'profiles:save',
+  deleteProfile: 'profiles:delete',
+  researchCompany: 'profiles:research',
+  getResume: 'resume:get',
+  saveResume: 'resume:save',
+  importResume: 'resume:import',
+  getKnowledgeSummary: 'knowledge:summary',
   // renderer → main (fire and forget)
   cancel: 'session:cancel',
   reset: 'session:reset',
@@ -53,6 +66,8 @@ export const IPC = {
   openSettings: 'app:open-settings',
   openKeyPage: 'app:open-key-page',
   quit: 'app:quit',
+  openProfilesFolder: 'profiles:open-folder',
+  openKnowledgeFolder: 'knowledge:open-folder',
   stopListening: 'listen:stop',
   pushAudio: 'listen:audio',
   reportCaptureWarning: 'listen:capture-warning',
@@ -70,6 +85,7 @@ export const IPC = {
   listenStatus: 'listen:status',
   listenToggle: 'listen:toggle',
   transcriptLine: 'listen:transcript-line',
+  scrollAnswer: 'overlay:scroll-answer',
   cloudStatus: 'cloud:status',
   purchaseStatus: 'cloud:purchase-status',
   showPaywall: 'cloud:show-paywall'
@@ -123,6 +139,22 @@ export interface ShadowAPI {
   /** Shows the overlay with the paywall (from Settings). */
   openPaywall(): void
 
+  /** Interview profiles: one markdown company brief per file in %APPDATA%\Shadow\profiles. */
+  listProfiles(): Promise<ProfileSummary[]>
+  getProfile(id: string): Promise<InterviewProfile | null>
+  saveProfile(profile: InterviewProfile): Promise<void>
+  deleteProfile(id: string): Promise<void>
+  /** Gemini + Google Search writes a brief and saves it as a profile. */
+  researchCompany(company: string, role: string): Promise<ResearchResult>
+  openProfilesFolder(): void
+  getResume(): Promise<string>
+  saveResume(text: string): Promise<void>
+  /** Opens a file picker (PDF, TXT, MD) and saves the text. null when cancelled. */
+  importResume(): Promise<ResumeImportResult>
+  /** About-me and project notes in %APPDATA%\Shadow\knowledge. */
+  getKnowledgeSummary(): Promise<KnowledgeSummary>
+  openKnowledgeFolder(): void
+
   onAnswerStart: Listener<AnswerStartEvent>
   onAnswerStatus: Listener<AnswerStatusEvent>
   onAnswerChunk: Listener<AnswerChunkEvent>
@@ -140,4 +172,6 @@ export interface ShadowAPI {
   onCloudStatus: Listener<CloudStatus>
   onPurchaseStatus: Listener<PurchaseStatus>
   onShowPaywall: Listener<PaywallReason>
+  /** Ctrl+Shift+Up/Down: scroll the answer panel up (-1) or down (1). */
+  onScrollAnswer: Listener<-1 | 1>
 }

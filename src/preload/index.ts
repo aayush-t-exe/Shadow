@@ -46,6 +46,18 @@ const api: ShadowAPI = {
   checkoutAction: (action) => ipcRenderer.send(IPC.checkoutAction, action),
   openPaywall: () => ipcRenderer.send(IPC.openPaywall),
 
+  listProfiles: () => ipcRenderer.invoke(IPC.listProfiles),
+  getProfile: (id) => ipcRenderer.invoke(IPC.getProfile, id),
+  saveProfile: (profile) => ipcRenderer.invoke(IPC.saveProfile, profile),
+  deleteProfile: (id) => ipcRenderer.invoke(IPC.deleteProfile, id),
+  researchCompany: (company, role) => ipcRenderer.invoke(IPC.researchCompany, company, role),
+  openProfilesFolder: () => ipcRenderer.send(IPC.openProfilesFolder),
+  getResume: () => ipcRenderer.invoke(IPC.getResume),
+  saveResume: (text) => ipcRenderer.invoke(IPC.saveResume, text),
+  importResume: () => ipcRenderer.invoke(IPC.importResume),
+  getKnowledgeSummary: () => ipcRenderer.invoke(IPC.getKnowledgeSummary),
+  openKnowledgeFolder: () => ipcRenderer.send(IPC.openKnowledgeFolder),
+
   onAnswerStart: listener(IPC.answerStart),
   onAnswerStatus: listener(IPC.answerStatus),
   onAnswerChunk: listener(IPC.answerChunk),
@@ -59,6 +71,7 @@ const api: ShadowAPI = {
   onListenStatus: listener(IPC.listenStatus),
   onListenToggle: listener(IPC.listenToggle),
   onTranscriptLine: listener(IPC.transcriptLine),
+  onScrollAnswer: listener(IPC.scrollAnswer),
   onCloudStatus: listener(IPC.cloudStatus),
   onPurchaseStatus: listener(IPC.purchaseStatus),
   onShowPaywall: listener(IPC.showPaywall)

@@ -8,7 +8,7 @@ import { activeModels, canUse, getModel, speedOptions } from '../ai/providers'
 import { getCloudStatus } from '../cloud'
 import type { ModelChoice, Settings } from '@shared/types'
 import { TRIAGE_PROMPT, formatTranscript } from '../ai/prompts'
-import { ask, onSessionReset, whenIdle } from '../session'
+import { ask, onManualLiveAnswer, onSessionReset, whenIdle } from '../session'
 import { SPEAKER } from '@shared/live'
 import { IPC } from '@shared/api'
 import { hotkeyFor, keycaps } from '@shared/hotkeys'
@@ -50,6 +50,9 @@ function toastRepeat() {
 
 let lastMicStart = 0
 let lastAutoAnswerAt = 0
+// When the user last pressed Ctrl+Shift+Enter for a heard question. Anything said before
+// then is covered by that answer, so a slow auto-answer for it is dropped.
+let lastManualAt = 0
 let resetEpoch = 0
 let queue: Promise<void> = Promise.resolve()
 let answered: string[] = []
@@ -114,6 +117,7 @@ async function consider(turn: FinalTurn) {
 
   const verdict = await classify(turn)
   if (!app.isPackaged) console.log('[auto-answer]', JSON.stringify({ heard: turn.text, verdict }))
+  if (lastManualAt > turn.endedAt) return // the user already answered it with the hotkey
   let question: string
   if (verdict) {
     if (verdict.alreadyAnswered) {
@@ -139,7 +143,7 @@ async function consider(turn: FinalTurn) {
   const epoch = resetEpoch
   const job = queue.then(async () => {
     await whenIdle()
-    if (epoch === resetEpoch) await ask({ mode: 'live', text: question })
+    if (epoch === resetEpoch && lastManualAt <= turn.endedAt) await ask({ mode: 'live', text: question })
   })
   queue = job.catch(() => {}) // one failed answer must not block the ones queued after it
   await job
@@ -149,6 +153,10 @@ export function startAutoAnswer() {
   onTurnSignal((signal) => {
     if (signal.kind === 'mic-start') lastMicStart = Date.now()
     else if (signal.kind === 'final') void consider(signal.turn)
+  })
+  onManualLiveAnswer((question) => {
+    lastManualAt = Date.now()
+    answered = [...answered, question].slice(-REMEMBERED_QUESTIONS)
   })
   onSessionReset(() => {
     answered = []

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { CODE_LANGUAGES, type Settings } from '@shared/types'
 import { providerInfo } from '@shared/providers'
 import { IS_OWNER_EDITION } from '@shared/edition'
+import { PROFILE_ID } from '@shared/profile'
 
 const providerId = z.enum(['gemini', 'groq', 'openai', 'anthropic', 'openrouter', 'ollama', 'custom'])
 const modelChoice = z.object({ provider: providerId, modelId: z.string().max(200), vision: z.boolean() })
@@ -13,7 +14,8 @@ const settingsPatch = z
     // Only the owner edition may switch to the user's own keys.
     source: IS_OWNER_EDITION ? z.enum(['cloud', 'keys']) : z.literal('cloud'),
     language: z.enum(CODE_LANGUAGES),
-    verbosity: z.enum(['concise', 'detailed']),
+    answerStyle: z.enum(['standard', 'concise', 'bullets', 'star', 'detailed']),
+    activeProfile: z.string().regex(PROFILE_ID).nullable(),
     answerModel: modelChoice,
     visionModel: modelChoice,
     backupModel: modelChoice.nullable(),
@@ -27,11 +29,12 @@ const settingsPatch = z
   .strict()
 
 const DEFAULTS: Settings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   // The owner edition keeps working exactly as before (own keys) until switched.
   source: IS_OWNER_EDITION ? 'keys' : 'cloud',
   language: 'auto',
-  verbosity: 'concise',
+  answerStyle: 'standard',
+  activeProfile: null,
   answerModel: providerInfo('gemini').defaultModel,
   visionModel: providerInfo('gemini').defaultModel,
   backupModel: null,
@@ -43,7 +46,20 @@ const DEFAULTS: Settings = {
 }
 
 let store: Store<Settings> | undefined
-const getStore = () => (store ??= new Store<Settings>({ name: 'settings', defaults: DEFAULTS }))
+
+function getStore(): Store<Settings> {
+  if (store) return store
+  // answerStyle has no store default, so a version-1 file's `verbosity` can be carried over once.
+  // Version 1's "concise" is today's "standard".
+  const { answerStyle: _, ...defaults } = DEFAULTS
+  store = new Store<Settings>({ name: 'settings', defaults: defaults as Settings })
+  const raw = store.store as Partial<Settings> & { verbosity?: string }
+  if (raw.schemaVersion !== 2) {
+    store.set({ schemaVersion: 2, answerStyle: raw.answerStyle ?? (raw.verbosity === 'detailed' ? 'detailed' : 'standard') })
+    store.delete('verbosity' as keyof Settings)
+  }
+  return store
+}
 
 export function getSettings(): Settings {
   const settings = { ...DEFAULTS, ...getStore().store }

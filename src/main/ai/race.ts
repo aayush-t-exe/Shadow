@@ -2,7 +2,13 @@
 // seconds (free tiers are sometimes slow or rate-limited) or it fails before answering,
 // also start the backup model, keep whichever produces text first, and cancel the other.
 
-export type StreamPart = { type: string; text?: string; error?: unknown }
+export type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string; rawFinishReason?: string }
+
+/** Why the winning stream ended: 'stop' is a normal ending; anything else may be a cut-off answer. */
+export interface Finish {
+  reason: string
+  raw?: string
+}
 
 export interface RaceOptions<C> {
   primary: C
@@ -15,12 +21,15 @@ export interface RaceOptions<C> {
   onHedge?: (backup: C) => void
   /** This model produced the first text and is the one being streamed. */
   onWinner?: (winner: C) => void
+  /** The winning stream ended; called once, before the generator returns. */
+  onFinish?: (finish: Finish) => void
 }
 
 interface Run<C> {
   choice: C
   controller: AbortController
   iterator: AsyncIterator<StreamPart>
+  finish?: Finish
 }
 
 type Outcome<C> = { run: Run<C>; text: string | null } | { run: Run<C>; error: unknown }
@@ -31,6 +40,7 @@ async function nextText<C>(run: Run<C>): Promise<string | null> {
     const { value, done } = await run.iterator.next()
     if (done) return null
     if (value.type === 'text-delta' && value.text) return value.text
+    if (value.type === 'finish') run.finish = { reason: value.finishReason ?? 'other', raw: value.rawFinishReason }
     if (value.type === 'error') throw value.error
   }
 }
@@ -101,7 +111,11 @@ export async function* raceText<C>(opts: RaceOptions<C>): AsyncGenerator<string>
   yield first!
   for (;;) {
     const text = await nextText(won)
-    if (text === null) return
+    if (text === null) {
+      // No 'finish' part at all means the stream was cut, not finished.
+      opts.onFinish?.(won.finish ?? { reason: 'other', raw: 'no finish event' })
+      return
+    }
     yield text
   }
 }

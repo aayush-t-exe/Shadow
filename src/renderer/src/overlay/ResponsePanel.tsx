@@ -119,7 +119,6 @@ export function ResponsePanel() {
   const openPaywall = useOverlay((s) => s.openPaywall)
   const closePaywall = useOverlay((s) => s.closePaywall)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const stickToBottom = useRef(true)
 
   const last = turns.at(-1)
   const streaming = last?.streaming ?? false
@@ -128,15 +127,22 @@ export function ResponsePanel() {
   const standalonePaywall = paywall && !answerPaywallShowing ? paywall : null
   const lowCredits = usingCloud && balance !== null && balance > 0 && balance <= LOW_CREDITS
 
-  // Follow the stream, unless the user scrolled up to read something.
-  const onScroll = () => {
-    const el = bodyRef.current
-    if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32
-  }
+  // A new answer is read from its first line: bring the new turn to the top of the panel
+  // and leave it there while it streams, instead of following the newest text.
   useLayoutEffect(() => {
     const el = bodyRef.current
-    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight
-  }, [last?.answer, turns.length, standalonePaywall])
+    const turn = el?.lastElementChild
+    if (el && turn) el.scrollTop += turn.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+  }, [last?.id, standalonePaywall])
+
+  // Ctrl+Shift+Up/Down scroll from any app, since the overlay usually doesn't have focus.
+  useEffect(
+    () =>
+      window.shadow.onScrollAnswer((direction) =>
+        bodyRef.current?.scrollBy({ top: direction * bodyRef.current.clientHeight * 0.6, behavior: 'smooth' })
+      ),
+    []
+  )
 
   let title = 'Ask Shadow'
   let meta = ''
@@ -184,7 +190,7 @@ export function ResponsePanel() {
       </header>
 
       {turns.length > 0 || standalonePaywall ? (
-        <div className="panel-body" ref={bodyRef} onScroll={onScroll}>
+        <div className="panel-body" ref={bodyRef}>
           {turns.map((t, i) => (
             <TurnView key={t.id} turn={t} latest={i === turns.length - 1 && !standalonePaywall} />
           ))}

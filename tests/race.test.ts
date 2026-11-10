@@ -89,4 +89,33 @@ describe('raceText', () => {
       )
     ).rejects.toThrow('boom')
   })
+
+  it("reports why the winner ended, so a cut-off answer isn't shown as complete", async () => {
+    const ending = (finish?: StreamPart) => async (): Promise<AsyncIterable<StreamPart>> =>
+      (async function* () {
+        yield { type: 'text-delta', text: 'half an ans' }
+        if (finish) yield finish
+      })()
+    const run = async (finish?: StreamPart) => {
+      let reported: unknown
+      await collect(
+        raceText({
+          primary: 'main' as const,
+          start: ending(finish),
+          hedgeAfterMs: 100,
+          signal: new AbortController().signal,
+          onFinish: (f) => (reported = f)
+        })
+      )
+      return reported
+    }
+    // Gemini's "recitation" stop arrives as content-filter.
+    expect(await run({ type: 'finish', finishReason: 'content-filter', rawFinishReason: 'RECITATION' })).toEqual({
+      reason: 'content-filter',
+      raw: 'RECITATION'
+    })
+    expect(await run({ type: 'finish', finishReason: 'stop' })).toEqual({ reason: 'stop', raw: undefined })
+    // No finish event at all: the stream was cut.
+    expect(await run()).toMatchObject({ reason: 'other' })
+  })
 })
